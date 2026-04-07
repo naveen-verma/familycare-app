@@ -12,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { checkOnboardingStatus } from '@/lib/user'
 
 const USE_PHONE_AUTH = process.env.NEXT_PUBLIC_APP_ENV === 'production'
 
@@ -95,7 +96,13 @@ export default function VerifyPage() {
 
       sessionStorage.removeItem('familycare_phone')
       sessionStorage.removeItem('familycare_email')
-      router.push('/dashboard')
+      const completed = await checkOnboardingStatus()
+      if (completed) {
+        router.push('/dashboard')
+      } else {
+        router.push('/onboarding')
+      }
+      
 
     } catch {
       setError('Verification failed. Please try again.')
