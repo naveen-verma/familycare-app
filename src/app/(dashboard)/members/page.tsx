@@ -3,32 +3,16 @@ import { MemberCard } from '@/components/members/MemberCard'
 import { AddMemberDialog } from '@/components/members/AddMemberDialog'
 import { Users } from 'lucide-react'
 
-export default async function DashboardPage() {
+export default async function MembersPage() {
   const members = await getFamilyMembers()
-
-  const activeConditionCount = members.reduce(
-    (sum, m) =>
-      sum +
-      m.medical_conditions.filter(
-        (c) => c.status === 'active' || c.status === 'chronic'
-      ).length,
-    0
-  )
 
   return (
     <div className="p-4 md:p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="font-heading text-xl font-semibold">Family Health</h1>
+          <h1 className="font-heading text-xl font-semibold">Family Members</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             {members.length} {members.length === 1 ? 'member' : 'members'}
-            {activeConditionCount > 0 && (
-              <>
-                {' '}
-                · {activeConditionCount} active{' '}
-                {activeConditionCount === 1 ? 'condition' : 'conditions'}
-              </>
-            )}
           </p>
         </div>
         <AddMemberDialog />

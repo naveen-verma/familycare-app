@@ -111,6 +111,18 @@ export interface Medication {
   deleted_at?: string
 }
 
+export interface ConditionConsultation {
+  id: string
+  medical_condition_id: string
+  doctor_name: string
+  hospital_name?: string
+  consultation_date?: string
+  notes?: string
+  created_at: string
+  updated_at: string
+  deleted_at?: string
+}
+
 export interface MedicalEvent {
   id: string
   family_member_id: string
