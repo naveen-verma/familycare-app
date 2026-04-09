@@ -149,7 +149,7 @@ export function UploadDocumentForm({
         hospitalName: hospitalName.trim() || undefined,
         documentDate: documentDate || undefined,
         notes: notes.trim() || undefined,
-        medicalConditionId: conditionId || undefined,
+        medicalConditionId: conditionId && conditionId !== 'none' ? conditionId : undefined,
       })
 
       setUploadProgress(100)
@@ -319,7 +319,7 @@ export function UploadDocumentForm({
               <SelectValue placeholder={loadingConditions ? 'Loading…' : 'None (optional)'} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">None</SelectItem>
+              <SelectItem value="none">None</SelectItem>
               {conditions.map((c) => (
                 <SelectItem key={c.id} value={c.id}>
                   {c.icd10_conditions?.common_name ??
@@ -330,7 +330,7 @@ export function UploadDocumentForm({
               ))}
             </SelectContent>
           </Select>
-          {conditionId && (
+          {conditionId && conditionId !== 'none' && (
             <p className="text-xs text-muted-foreground">
               Linking a condition marks this document as Phase 2 ready for second opinions.
             </p>
