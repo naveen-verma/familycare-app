@@ -24,8 +24,8 @@ import {
   Building2,
   Zap,
 } from 'lucide-react'
-import type { VaultMember, VaultDocument, VaultCondition } from '@/lib/vault'
-import { DOC_TYPE_ORDER, DOC_TYPE_LABELS } from '@/lib/vault'
+import type { VaultMember, VaultDocument, VaultCondition } from '@/lib/vault-types'
+import { DOC_TYPE_ORDER, DOC_TYPE_LABELS } from '@/lib/vault-types'
 import type { DocumentType } from '@/types/database'
 
 // ---- Helpers ----

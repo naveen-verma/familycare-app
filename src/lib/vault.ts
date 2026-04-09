@@ -1,56 +1,14 @@
 import { createClient } from '@/lib/supabase/server'
-import type { DocumentType } from '@/types/database'
+import type {
+  VaultDocument,
+  VaultCondition,
+  VaultMember,
+  ViewReportDocument,
+  ViewReportCondition,
+} from '@/lib/vault-types'
 
-export type VaultDocument = {
-  id: string
-  title: string
-  document_type: DocumentType
-  document_date: string | null
-  doctor_name: string | null
-  hospital_name: string | null
-  notes: string | null
-  file_url: string
-  file_type: string | null
-  file_size_kb: number | null
-  phase2_ready: boolean
-  medical_condition_id: string | null
-}
-
-export type VaultCondition = {
-  id: string
-  name: string
-  status: string
-  diagnosed_on: string | null
-  documents: VaultDocument[]
-}
-
-export type VaultMember = {
-  id: string
-  full_name: string
-  date_of_birth: string | null
-  blood_group: string | null
-  relation: string | null
-  conditions: VaultCondition[]
-  general_documents: VaultDocument[]
-}
-
-export const DOC_TYPE_ORDER: DocumentType[] = [
-  'prescription',
-  'report',
-  'scan',
-  'vaccination',
-  'insurance',
-  'other',
-]
-
-export const DOC_TYPE_LABELS: Record<DocumentType, string> = {
-  prescription: 'Prescriptions',
-  report: 'Lab Reports',
-  scan: 'Scans',
-  vaccination: 'Vaccinations',
-  insurance: 'Insurance',
-  other: 'Other',
-}
+export type { VaultDocument, VaultCondition, VaultMember, ViewReportDocument, ViewReportCondition }
+export { DOC_TYPE_ORDER, DOC_TYPE_LABELS } from '@/lib/vault-types'
 
 export async function getVaultData(): Promise<VaultMember[]> {
   const supabase = await createClient()
@@ -88,14 +46,12 @@ export async function getVaultData(): Promise<VaultMember[]> {
       .order('created_at', { ascending: false }),
   ])
 
-  // Index documents by family_member_id
   const docsByMember: Record<string, VaultDocument[]> = {}
   for (const doc of documents || []) {
     if (!docsByMember[doc.family_member_id]) docsByMember[doc.family_member_id] = []
     docsByMember[doc.family_member_id].push(doc as unknown as VaultDocument)
   }
 
-  // Index conditions by family_member_id
   const condsByMember: Record<string, any[]> = {}
   for (const cond of conditions || []) {
     if (!condsByMember[cond.family_member_id]) condsByMember[cond.family_member_id] = []
@@ -130,17 +86,6 @@ export async function getVaultData(): Promise<VaultMember[]> {
   })
 }
 
-// ---- View Report ----
-
-export type ViewReportDocument = VaultDocument & { signed_url: string | null }
-
-export type ViewReportCondition = {
-  id: string
-  name: string
-  status: string
-  diagnosed_on: string | null
-} | null
-
 export async function getViewReportData(memberId: string, conditionId: string) {
   const supabase = await createClient()
 
@@ -156,9 +101,7 @@ export async function getViewReportData(memberId: string, conditionId: string) {
       ? Promise.resolve({ data: null })
       : supabase
           .from('medical_conditions')
-          .select(
-            'id, custom_name, status, diagnosed_on, icd10_conditions(name, common_name)'
-          )
+          .select('id, custom_name, status, diagnosed_on, icd10_conditions(name, common_name)')
           .eq('id', conditionId)
           .is('deleted_at', null)
           .single(),
@@ -188,7 +131,6 @@ export async function getViewReportData(memberId: string, conditionId: string) {
 
   if (memberResult.error || !memberResult.data) return null
 
-  // Resolve condition name
   let condition: ViewReportCondition = null
   if (conditionId !== 'general' && conditionResult.data) {
     const raw = conditionResult.data as any
@@ -201,7 +143,6 @@ export async function getViewReportData(memberId: string, conditionId: string) {
     }
   }
 
-  // Generate signed URLs for all documents
   const docs: ViewReportDocument[] = await Promise.all(
     (docsResult.data || []).map(async (doc) => {
       const { data: signed } = await supabase.storage
@@ -211,14 +152,8 @@ export async function getViewReportData(memberId: string, conditionId: string) {
     })
   )
 
-  return {
-    member: memberResult.data,
-    condition,
-    documents: docs,
-  }
+  return { member: memberResult.data, condition, documents: docs }
 }
-
-// ---- Upload form helpers ----
 
 export type UploadConditionOption = {
   id: string
