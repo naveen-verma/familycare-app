@@ -18,6 +18,17 @@ import { saveDocumentAction } from '@/app/(dashboard)/documents/actions'
 import type { DocumentType } from '@/types/database'
 import { Upload, X, FileText, FileImage, AlertCircle } from 'lucide-react'
 
+const MIME_TO_EXT: Record<string, string> = {
+  'application/pdf': 'pdf',
+  'image/jpeg': 'jpeg',
+  'image/jpg': 'jpg',
+  'image/png': 'png',
+}
+
+function mimeToExt(mime: string): string {
+  return MIME_TO_EXT[mime] ?? mime
+}
+
 const DOC_TYPES: { value: DocumentType; label: string }[] = [
   { value: 'prescription', label: 'Prescription' },
   { value: 'report', label: 'Lab Report' },
@@ -143,7 +154,7 @@ export function UploadDocumentForm({
         documentType: docType,
         title: title.trim(),
         fileUrl: urlData.publicUrl,
-        fileType: file.type,
+        fileType: mimeToExt(file.type),
         fileSizeKb: Math.round(file.size / 1024),
         doctorName: doctorName.trim() || undefined,
         hospitalName: hospitalName.trim() || undefined,
