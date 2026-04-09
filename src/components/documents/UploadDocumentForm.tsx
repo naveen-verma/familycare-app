@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -29,23 +29,40 @@ function mimeToExt(mime: string): string {
   return MIME_TO_EXT[mime] ?? mime
 }
 
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return ''
+  return new Date(dateStr).toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  active: 'Active',
+  chronic: 'Chronic',
+  monitoring: 'Monitoring',
+  resolved: 'Resolved',
+}
+
 const DOC_TYPES: { value: DocumentType; label: string }[] = [
   { value: 'prescription', label: 'Prescription' },
   { value: 'report', label: 'Lab Report' },
   { value: 'scan', label: 'Scan / Imaging' },
-  { value: 'insurance', label: 'Insurance' },
   { value: 'vaccination', label: 'Vaccination Record' },
+  { value: 'insurance', label: 'Insurance' },
   { value: 'other', label: 'Other' },
 ]
 
 const ACCEPTED_TYPES = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png']
-const MAX_SIZE_BYTES = 10 * 1024 * 1024 // 10 MB
+const MAX_SIZE_BYTES = 10 * 1024 * 1024
 
 type Member = { id: string; full_name: string }
-type Condition = {
+type ConditionOption = {
   id: string
-  custom_name: string | null
-  icd10_conditions: { name: string; common_name: string | null } | null
+  name: string
+  status: string
+  diagnosed_on: string | null
 }
 
 export function UploadDocumentForm({
@@ -64,8 +81,8 @@ export function UploadDocumentForm({
   const [hospitalName, setHospitalName] = useState('')
   const [documentDate, setDocumentDate] = useState('')
   const [notes, setNotes] = useState('')
-  const [conditionId, setConditionId] = useState('')
-  const [conditions, setConditions] = useState<Condition[]>([])
+  const [conditionId, setConditionId] = useState('general')
+  const [conditions, setConditions] = useState<ConditionOption[]>([])
   const [loadingConditions, setLoadingConditions] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -74,16 +91,27 @@ export function UploadDocumentForm({
 
   async function loadConditions(memberId: string) {
     setLoadingConditions(true)
-    setConditionId('')
+    setConditionId('general')
     try {
       const supabase = createClient()
       const { data } = await supabase
         .from('medical_conditions')
-        .select('id, custom_name, icd10_conditions(name, common_name)')
+        .select('id, custom_name, status, diagnosed_on, icd10_conditions(name, common_name)')
         .eq('family_member_id', memberId)
         .is('deleted_at', null)
+        .order('diagnosed_on', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false })
-      setConditions((data as unknown as Condition[]) || [])
+
+      const opts: ConditionOption[] = (data || []).map((c: any) => {
+        const ic = c.icd10_conditions as { name: string; common_name: string | null } | null
+        return {
+          id: c.id,
+          name: ic?.common_name ?? ic?.name ?? c.custom_name ?? 'Unknown',
+          status: c.status,
+          diagnosed_on: c.diagnosed_on,
+        }
+      })
+      setConditions(opts)
     } finally {
       setLoadingConditions(false)
     }
@@ -107,9 +135,7 @@ export function UploadDocumentForm({
       return
     }
     setFile(f)
-    if (!title) {
-      setTitle(f.name.replace(/\.[^.]+$/, ''))
-    }
+    if (!title) setTitle(f.name.replace(/\.[^.]+$/, ''))
   }
 
   function removeFile() {
@@ -124,18 +150,16 @@ export function UploadDocumentForm({
     if (!selectedMemberId) { setError('Please select a family member.'); return }
     if (!file) { setError('Please select a file to upload.'); return }
     if (!title.trim()) { setError('Document title is required.'); return }
+    if (title.trim().length > 100) { setError('Title must be 100 characters or less.'); return }
 
     setSubmitting(true)
     setUploadProgress(0)
 
     try {
       const supabase = createClient()
-      const timestamp = Date.now()
-      const ext = file.name.split('.').pop()
-      const filePath = `${familyGroupId}/${selectedMemberId}/${timestamp}_${file.name.replace(/\s+/g, '_')}`
+      const filePath = `${familyGroupId}/${selectedMemberId}/${Date.now()}_${file.name.replace(/\s+/g, '_')}`
 
-      // Upload to Supabase Storage with progress simulation
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('familycare-docs')
         .upload(filePath, file, { upsert: false })
 
@@ -154,7 +178,7 @@ export function UploadDocumentForm({
         hospitalName: hospitalName.trim() || undefined,
         documentDate: documentDate || undefined,
         notes: notes.trim() || undefined,
-        medicalConditionId: conditionId && conditionId !== 'none' ? conditionId : undefined,
+        medicalConditionId: conditionId !== 'general' ? conditionId : undefined,
       })
 
       setUploadProgress(100)
@@ -212,7 +236,11 @@ export function UploadDocumentForm({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="e.g. Blood Test Report — Jan 2025"
+          maxLength={100}
         />
+        {title.length > 80 && (
+          <p className="text-xs text-muted-foreground">{title.length}/100</p>
+        )}
       </div>
 
       {/* File upload */}
@@ -231,13 +259,7 @@ export function UploadDocumentForm({
                 {(file.size / 1024).toFixed(0)} KB
               </p>
             </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={removeFile}
-              className="shrink-0"
-            >
+            <Button type="button" variant="ghost" size="sm" onClick={removeFile} className="shrink-0">
               <X className="size-4" />
             </Button>
           </div>
@@ -274,22 +296,40 @@ export function UploadDocumentForm({
             />
           </div>
           <p className="text-xs text-muted-foreground">
-            {uploadProgress < 100 ? `Uploading… ${uploadProgress}%` : 'Processing…'}
+            {uploadProgress < 100 ? `Uploading… ${uploadProgress}%` : 'Saving…'}
           </p>
+        </div>
+      )}
+
+      {/* Link to condition */}
+      {selectedMemberId && (
+        <div className="space-y-1.5">
+          <Label>Link to Medical Condition</Label>
+          <Select value={conditionId} onValueChange={setConditionId} disabled={loadingConditions}>
+            <SelectTrigger>
+              <SelectValue placeholder={loadingConditions ? 'Loading…' : 'Select'} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="general">Not linked to a condition (General)</SelectItem>
+              {conditions.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
+                  {c.status ? ` · ${STATUS_LABELS[c.status] ?? c.status}` : ''}
+                  {c.diagnosed_on ? ` · ${formatDate(c.diagnosed_on)}` : ''}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {conditionId !== 'general' && (
+            <p className="text-xs text-muted-foreground">
+              Linking a condition enables second opinion matching in Phase 2.
+            </p>
+          )}
         </div>
       )}
 
       {/* Optional fields */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label htmlFor="doctor_name">Doctor Name</Label>
-          <Input
-            id="doctor_name"
-            value={doctorName}
-            onChange={(e) => setDoctorName(e.target.value)}
-            placeholder="Dr. Sharma"
-          />
-        </div>
         <div className="space-y-1.5">
           <Label htmlFor="document_date">Document Date</Label>
           <Input
@@ -297,6 +337,15 @@ export function UploadDocumentForm({
             type="date"
             value={documentDate}
             onChange={(e) => setDocumentDate(e.target.value)}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="doctor_name">Doctor Name</Label>
+          <Input
+            id="doctor_name"
+            value={doctorName}
+            onChange={(e) => setDoctorName(e.target.value)}
+            placeholder="Dr. Sharma"
           />
         </div>
       </div>
@@ -311,39 +360,6 @@ export function UploadDocumentForm({
         />
       </div>
 
-      {/* Condition link */}
-      {selectedMemberId && (
-        <div className="space-y-1.5">
-          <Label>Link to Condition</Label>
-          <Select
-            value={conditionId}
-            onValueChange={setConditionId}
-            disabled={loadingConditions}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder={loadingConditions ? 'Loading…' : 'None (optional)'} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">None</SelectItem>
-              {conditions.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.icd10_conditions?.common_name ??
-                    c.icd10_conditions?.name ??
-                    c.custom_name ??
-                    'Unknown'}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {conditionId && conditionId !== 'none' && (
-            <p className="text-xs text-muted-foreground">
-              Linking a condition marks this document as Phase 2 ready for second opinions.
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* Notes */}
       <div className="space-y-1.5">
         <Label htmlFor="notes">Notes</Label>
         <Textarea

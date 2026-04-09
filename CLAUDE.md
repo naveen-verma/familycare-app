@@ -282,9 +282,13 @@ style: improve mobile layout on member profile
 - OTP verify page — 6-box input with auto-focus
 - Onboarding page — 2 step flow (personal + health details)
 - Dashboard placeholder page
+- Family profile management — add/edit family members
+- Medical conditions tagging with ICD-10
+
 
 ### In Progress 🔄
 - Onboarding flow testing and bug fixes
+- Document Vault — file upload to Supabase Storage
 
 ### Up Next (in priority order) ⏳
 1. Fix onboarding build error (user.ts export)
