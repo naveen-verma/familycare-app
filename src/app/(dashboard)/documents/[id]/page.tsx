@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 import { getDocument } from '@/lib/documents'
 import { DocumentTypeIcon } from '@/components/documents/DocumentTypeIcon'
 import { DeleteDocumentButton } from '@/components/documents/DeleteDocumentButton'
-import { Badge } from '@/components/ui/badge'
+import { ConditionTag } from '@/components/conditions/ConditionTag'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
@@ -53,10 +53,12 @@ export default async function DocumentDetailPage({
 
   if (!doc) notFound()
 
-  const conditionName =
-    doc.medical_conditions?.icd10_conditions?.common_name ??
-    doc.medical_conditions?.icd10_conditions?.name ??
-    doc.medical_conditions?.custom_name
+  const condition = doc.medical_conditions
+  const conditionName = condition
+    ? (condition.icd10_conditions?.common_name ??
+        condition.icd10_conditions?.name ??
+        condition.custom_name)
+    : null
 
   const isImage = doc.file_type?.startsWith('image/')
 
@@ -186,12 +188,10 @@ export default async function DocumentDetailPage({
           </CardContent>
         </Card>
 
-        {conditionName && (
+        {conditionName && condition && (
           <div>
             <p className="text-xs text-muted-foreground mb-1.5">Linked Condition</p>
-            <span className="inline-flex h-6 items-center rounded-full bg-red-50 border border-red-200 px-3 text-sm text-red-700 font-medium">
-              {conditionName}
-            </span>
+            <ConditionTag status={condition.status} name={conditionName} />
           </div>
         )}
 

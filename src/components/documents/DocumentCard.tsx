@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { DocumentTypeIcon } from './DocumentTypeIcon'
+import { ConditionTag } from '@/components/conditions/ConditionTag'
 import type { DocumentWithMember } from '@/lib/documents'
 import type { DocumentType } from '@/types/database'
 import { Calendar, User, Building2, Stethoscope } from 'lucide-react'
@@ -34,10 +34,12 @@ function formatDate(dateStr: string | null | undefined): string {
 }
 
 export function DocumentCard({ doc }: { doc: DocumentWithMember }) {
-  const conditionName =
-    doc.medical_conditions?.icd10_conditions?.common_name ??
-    doc.medical_conditions?.icd10_conditions?.name ??
-    doc.medical_conditions?.custom_name
+  const condition = doc.medical_conditions
+  const conditionName = condition
+    ? (condition.icd10_conditions?.common_name ??
+        condition.icd10_conditions?.name ??
+        condition.custom_name)
+    : null
 
   return (
     <Link href={`/documents/${doc.id}`}>
@@ -87,11 +89,9 @@ export function DocumentCard({ doc }: { doc: DocumentWithMember }) {
                 </div>
               )}
 
-              {conditionName && (
+              {conditionName && condition && (
                 <div className="mt-2">
-                  <span className="inline-flex h-5 items-center rounded-full bg-red-50 border border-red-200 px-2 text-xs text-red-700">
-                    {conditionName}
-                  </span>
+                  <ConditionTag status={condition.status} name={conditionName} />
                 </div>
               )}
             </div>

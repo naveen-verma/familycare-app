@@ -3,7 +3,11 @@ import type { Document, DocumentType } from '@/types/database'
 
 export type DocumentWithMember = Document & {
   family_members: { full_name: string } | null
-  medical_conditions: { custom_name: string | null; icd10_conditions: { name: string; common_name: string | null } | null } | null
+  medical_conditions: {
+    custom_name: string | null
+    status: string
+    icd10_conditions: { name: string; common_name: string | null } | null
+  } | null
 }
 
 export type DocumentFilters = {
@@ -21,7 +25,7 @@ export async function getDocuments(filters?: DocumentFilters): Promise<DocumentW
     .select(`
       *,
       family_members(full_name),
-      medical_conditions(custom_name, icd10_conditions(name, common_name))
+      medical_conditions(custom_name, status, icd10_conditions(name, common_name))
     `)
     .is('deleted_at', null)
     .order('document_date', { ascending: false, nullsFirst: false })
@@ -54,7 +58,7 @@ export async function getDocument(id: string): Promise<DocumentWithMember | null
     .select(`
       *,
       family_members(full_name),
-      medical_conditions(custom_name, icd10_conditions(name, common_name))
+      medical_conditions(custom_name, status, icd10_conditions(name, common_name))
     `)
     .eq('id', id)
     .is('deleted_at', null)
