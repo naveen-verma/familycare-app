@@ -34,20 +34,23 @@ export async function createPrimaryFamilyMember(data: {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
-  // Get family group for this user
-  const { data: profile } = await supabase
+  // Get user's internal ID
+  const { data: profile, error: profileError } = await supabase
     .from('users')
-    .select(`
-      id,
-      family_groups (id)
-    `)
+    .select('id')
     .eq('supabase_auth_id', user.id)
     .single()
 
-  if (!profile) throw new Error('User profile not found')
+  if (profileError || !profile) throw new Error('User profile not found')
 
-  const familyGroup = (profile.family_groups as any[])?.[0]
-  if (!familyGroup) throw new Error('Family group not found')
+  // Get family group directly — avoids unreliable reverse-FK embedding
+  const { data: familyGroup, error: groupError } = await supabase
+    .from('family_groups')
+    .select('id')
+    .eq('owner_id', profile.id)
+    .single()
+
+  if (groupError || !familyGroup) throw new Error('Family group not found')
 
   const { error } = await supabase
     .from('family_members')
