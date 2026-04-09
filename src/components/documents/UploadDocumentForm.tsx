@@ -141,19 +141,13 @@ export function UploadDocumentForm({
 
       if (uploadError) throw new Error(uploadError.message)
 
-      setUploadProgress(80)
-
-      const { data: urlData } = supabase.storage
-        .from('familycare-docs')
-        .getPublicUrl(filePath)
-
       setUploadProgress(90)
 
       await saveDocumentAction({
         familyMemberId: selectedMemberId,
         documentType: docType,
         title: title.trim(),
-        fileUrl: urlData.publicUrl,
+        fileUrl: filePath,
         fileType: mimeToExt(file.type),
         fileSizeKb: Math.round(file.size / 1024),
         doctorName: doctorName.trim() || undefined,

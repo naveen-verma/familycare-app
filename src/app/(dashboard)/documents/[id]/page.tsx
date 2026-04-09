@@ -60,7 +60,8 @@ export default async function DocumentDetailPage({
         condition.custom_name)
     : null
 
-  const isImage = doc.file_type?.startsWith('image/')
+  const isImage = doc.file_type === 'jpg' || doc.file_type === 'jpeg' || doc.file_type === 'png'
+  const viewUrl = doc.signed_url
 
   return (
     <div className="p-4 md:p-6 max-w-2xl mx-auto">
@@ -92,11 +93,15 @@ export default async function DocumentDetailPage({
       </div>
 
       {/* File preview */}
-      {isImage ? (
+      {!viewUrl ? (
+        <div className="rounded-xl border mb-5 bg-muted flex items-center justify-center h-40">
+          <p className="text-sm text-muted-foreground">Preview unavailable</p>
+        </div>
+      ) : isImage ? (
         <div className="rounded-xl overflow-hidden border mb-5 bg-muted">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={doc.file_url}
+            src={viewUrl}
             alt={doc.title}
             className="w-full object-contain max-h-[400px]"
           />
@@ -104,7 +109,7 @@ export default async function DocumentDetailPage({
       ) : (
         <div className="rounded-xl border mb-5 bg-muted overflow-hidden">
           <iframe
-            src={doc.file_url}
+            src={viewUrl}
             className="w-full h-[400px] md:h-[500px]"
             title={doc.title}
           />
@@ -113,8 +118,8 @@ export default async function DocumentDetailPage({
 
       {/* Actions */}
       <div className="flex gap-2 mb-6">
-        <Button asChild size="sm">
-          <a href={doc.file_url} download target="_blank" rel="noopener noreferrer">
+        <Button asChild size="sm" disabled={!viewUrl}>
+          <a href={viewUrl ?? '#'} download target="_blank" rel="noopener noreferrer">
             <Download className="size-4 mr-1.5" />
             Download
           </a>

@@ -50,7 +50,9 @@ export async function getDocuments(filters?: DocumentFilters): Promise<DocumentW
   return (data || []) as DocumentWithMember[]
 }
 
-export async function getDocument(id: string): Promise<DocumentWithMember | null> {
+export async function getDocument(
+  id: string
+): Promise<(DocumentWithMember & { signed_url: string | null }) | null> {
   const supabase = await createClient()
 
   const { data, error } = await supabase
@@ -65,7 +67,16 @@ export async function getDocument(id: string): Promise<DocumentWithMember | null
     .single()
 
   if (error) return null
-  return data as DocumentWithMember
+
+  // Generate a 1-hour signed URL for the private bucket
+  const { data: signedData } = await supabase.storage
+    .from('familycare-docs')
+    .createSignedUrl(data.file_url, 3600)
+
+  return {
+    ...(data as DocumentWithMember),
+    signed_url: signedData?.signedUrl ?? null,
+  }
 }
 
 export async function getMemberConditionsForUpload(memberId: string) {
