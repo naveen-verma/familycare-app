@@ -316,3 +316,131 @@ style: improve mobile layout on member profile
 - Tailwind + shadcn/ui only — no other CSS frameworks
 - No direct DB schema changes — all changes via migration files
   in the familycare repo
+
+---
+
+## Planned UX Enhancements — Phase 1
+
+These features are planned but not yet built. Claude Code should be
+aware of these when building related features so the foundation is
+laid correctly.
+
+---
+
+### 1. AI Document Extraction (Scan to Auto-Fill)
+
+When to build: During or after Document Vault feature
+Location: Integrated into document upload flow
+
+How it works:
+- User uploads a prescription or report
+- Optional button appears: "Extract details with AI"
+- Calls Claude API (claude-sonnet-4-20250514) with the uploaded image/PDF
+- Claude extracts structured data and pre-fills the Add Condition form
+- User reviews all extracted fields before saving — never auto-save
+
+Fields that can be extracted:
+- Doctor name → diagnosed_by in medical_conditions
+- Hospital/Clinic name → hospital_name in documents
+- Date of visit → diagnosed_on in medical_conditions
+- Condition/diagnosis name → matched to icd10_conditions or custom_name
+- Medications prescribed → pre-fills medication name, dosage
+- Notes/instructions → notes field
+
+Fields NOT to auto-extract (user must set manually):
+- Status (chronic/active/monitoring/resolved) — default to 'active'
+- Family member — user must confirm which member this is for
+
+Implementation notes:
+- Use Claude API already integrated in the project
+- Send image as base64 with media_type image/jpeg or image/png
+- For PDFs convert first page to image before sending
+- Always show extracted data in a review step before saving
+- Mark extracted fields visually so user knows what was auto-filled
+- This feeds Phase 2 — extracted structured data improves
+  Second Opinion Engine matching accuracy
+
+---
+
+### 2. Height, Weight and BMI Tracking
+
+When to build: As enhancement to Member Profile page
+Location: src/app/(dashboard)/members/[id]/page.tsx
+
+Database change needed (add migration in familycare repo):
+- Add to family_members table:
+  height_cm     numeric (e.g. 170.5)
+  weight_kg     numeric (e.g. 68.0)
+  bmi           numeric (calculated, stored for history)
+  bmi_date      date (date of measurement)
+
+BMI Calculation:
+  BMI = weight_kg / (height_cm / 100)^2
+
+Use Indian BMI Classification (WHO Asia-Pacific guidelines)
+NOT Western cutoffs — Indian thresholds are lower:
+  Underweight   < 18.5
+  Normal        18.5 – 22.9
+  Overweight    23.0 – 24.9
+  Obese Class I   25.0 – 29.9
+  Obese Class II  ≥ 30.0
+
+UI:
+- Add Height and Weight fields to member profile edit form
+- Auto-calculate and display BMI with colour-coded classification badge:
+  Underweight → blue
+  Normal      → green
+  Overweight  → yellow
+  Obese I     → orange
+  Obese II    → red
+- Show date of last measurement
+- Future Phase 2: track BMI over time as a trend chart
+
+Why Indian cutoffs matter:
+Indian populations have higher metabolic risk at lower BMI values
+than Western populations. Using standard WHO cutoffs (24.9 = normal)
+would incorrectly classify many at-risk Indian users as healthy.
+
+---
+
+### 3. Medical Condition Display Order — Pin to Top
+
+When to build: As enhancement to Member Profile and Document Vault
+Default sort: Descending by diagnosed_on date (most recent first)
+
+Database change needed (add migration in familycare repo):
+- Add to medical_conditions table:
+  is_pinned   boolean not null default false
+
+Pin behaviour:
+- Pinned conditions always appear first, regardless of date
+- Within pinned conditions: sort by diagnosed_on descending
+- Within unpinned conditions: sort by diagnosed_on descending
+- User can pin/unpin via a pin icon on each condition card
+- Maximum pins: no limit — user decides what matters most
+
+UI:
+- Show pin icon (Lucide Pin icon) on each condition card
+- Filled pin icon = pinned (indigo colour)
+- Outline pin icon = unpinned (grey)
+- Pinned conditions show a subtle "Pinned" indicator
+- Pin/unpin is a single click — no confirmation needed
+- Pinned conditions appear in both Member Profile and Document Vault
+
+Sort order rule to implement everywhere conditions are listed:
+  ORDER BY is_pinned DESC, diagnosed_on DESC
+
+---
+
+### 4. Document Vault — AI Extraction Entry Point
+
+When building Document Vault upload form, add a placeholder for
+the AI extraction feature even if not fully built yet:
+
+- After file is selected in upload form, show a button:
+  "✨ Extract details from document"
+- In Phase 1 this can show "Coming soon" or be disabled
+- The button should be in the correct position in the UI so
+  it does not need to be moved when AI extraction is built
+
+This avoids a UI restructure later when extraction is implemented.
