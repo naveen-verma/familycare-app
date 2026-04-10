@@ -22,6 +22,7 @@ export type VaultCondition = {
   name: string
   status: string
   diagnosed_on: string | null
+  is_pinned: boolean
   documents: VaultDocument[]
 }
 

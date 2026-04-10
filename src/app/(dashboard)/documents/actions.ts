@@ -69,6 +69,22 @@ export async function deleteDocumentAction(documentId: string) {
   revalidatePath('/documents')
 }
 
+export async function toggleConditionPinAction(conditionId: string, currentlyPinned: boolean) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const { error } = await supabase
+    .from('medical_conditions')
+    .update({ is_pinned: !currentlyPinned })
+    .eq('id', conditionId)
+
+  if (error) throw error
+
+  revalidatePath('/documents')
+}
+
 export async function getFamilyGroupId(): Promise<string | null> {
   const supabase = await createClient()
 

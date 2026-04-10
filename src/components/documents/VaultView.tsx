@@ -23,10 +23,12 @@ import {
   Stethoscope,
   Building2,
   Zap,
+  Pin,
 } from 'lucide-react'
 import type { VaultMember, VaultDocument, VaultCondition } from '@/lib/vault-types'
 import { DOC_TYPE_ORDER, DOC_TYPE_LABELS } from '@/lib/vault-types'
 import type { DocumentType } from '@/types/database'
+import { toggleConditionPinAction } from '@/app/(dashboard)/documents/actions'
 
 // ---- Helpers ----
 
@@ -174,6 +176,8 @@ function ConditionGroup({
   memberId: string
 }) {
   const [open, setOpen] = useState(false)
+  const [pinned, setPinned] = useState(condition.is_pinned)
+  const [pinning, setPinning] = useState(false)
   const totalDocs = condition.documents.length
 
   const docsByType = DOC_TYPE_ORDER.reduce<Record<DocumentType, VaultDocument[]>>(
@@ -183,6 +187,20 @@ function ConditionGroup({
     },
     {} as Record<DocumentType, VaultDocument[]>
   )
+
+  async function handlePin(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (pinning) return
+    setPinning(true)
+    setPinned((p) => !p)
+    try {
+      await toggleConditionPinAction(condition.id, pinned)
+    } catch {
+      setPinned((p) => !p) // revert on error
+    } finally {
+      setPinning(false)
+    }
+  }
 
   return (
     <div className="border rounded-lg overflow-hidden">
@@ -199,6 +217,11 @@ function ConditionGroup({
             >
               {condition.status}
             </span>
+            {pinned && (
+              <span className="inline-flex h-5 items-center rounded-full bg-indigo-100 text-indigo-700 px-2 text-xs font-medium">
+                Pinned
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-3 mt-0.5">
             {condition.diagnosed_on && (
@@ -211,6 +234,17 @@ function ConditionGroup({
             </span>
           </div>
         </div>
+        <button
+          type="button"
+          onClick={handlePin}
+          disabled={pinning}
+          aria-label={pinned ? 'Unpin condition' : 'Pin condition to top'}
+          className="shrink-0 p-1.5 rounded-md hover:bg-muted transition-colors disabled:opacity-50"
+        >
+          <Pin
+            className={`size-4 transition-colors ${pinned ? 'fill-indigo-500 text-indigo-500' : 'text-muted-foreground'}`}
+          />
+        </button>
         <ChevronDown
           className={`size-4 text-muted-foreground shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
         />

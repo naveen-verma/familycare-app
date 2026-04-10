@@ -19,6 +19,7 @@ import {
   Upload,
   Zap,
 } from 'lucide-react'
+import { DeleteDocumentButton } from '@/components/documents/DeleteDocumentButton'
 
 const statusStyles: Record<string, string> = {
   active: 'bg-red-100 text-red-700 border-red-200',
@@ -87,22 +88,25 @@ function DocumentCard({ doc }: { doc: ViewReportDocument }) {
               <p className="mt-2 text-xs text-muted-foreground line-clamp-2">{doc.notes}</p>
             )}
 
-            {doc.signed_url && (
-              <div className="flex gap-2 mt-3">
-                <Button asChild size="sm" variant="outline" className="h-7 text-xs">
-                  <a href={doc.signed_url} target="_blank" rel="noopener noreferrer">
-                    <Eye className="size-3 mr-1" />
-                    View
-                  </a>
-                </Button>
-                <Button asChild size="sm" variant="outline" className="h-7 text-xs">
-                  <a href={doc.signed_url} download>
-                    <Download className="size-3 mr-1" />
-                    Download
-                  </a>
-                </Button>
-              </div>
-            )}
+            <div className="flex flex-wrap gap-2 mt-3">
+              {doc.signed_url && (
+                <>
+                  <Button asChild size="sm" variant="outline" className="h-7 text-xs">
+                    <a href={doc.signed_url} target="_blank" rel="noopener noreferrer">
+                      <Eye className="size-3 mr-1" />
+                      View
+                    </a>
+                  </Button>
+                  <Button asChild size="sm" variant="outline" className="h-7 text-xs">
+                    <a href={doc.signed_url} download>
+                      <Download className="size-3 mr-1" />
+                      Download
+                    </a>
+                  </Button>
+                </>
+              )}
+              <DeleteDocumentButton documentId={doc.id} />
+            </div>
           </div>
         </div>
       </CardContent>

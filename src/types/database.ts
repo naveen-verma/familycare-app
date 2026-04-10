@@ -64,6 +64,7 @@ export interface MedicalCondition {
   diagnosed_by?: string
   status: ConditionStatus
   notes?: string
+  is_pinned: boolean
   specialist_matched: boolean
   second_opinion_requested: boolean
   created_at: string

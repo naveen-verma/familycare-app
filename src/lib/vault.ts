@@ -28,10 +28,11 @@ export async function getVaultData(): Promise<VaultMember[]> {
     supabase
       .from('medical_conditions')
       .select(
-        'id, family_member_id, custom_name, status, diagnosed_on, icd10_conditions(name, common_name)'
+        'id, family_member_id, custom_name, status, diagnosed_on, is_pinned, icd10_conditions(name, common_name)'
       )
       .in('family_member_id', memberIds)
       .is('deleted_at', null)
+      .order('is_pinned', { ascending: false })
       .order('diagnosed_on', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false }),
 
@@ -70,6 +71,7 @@ export async function getVaultData(): Promise<VaultMember[]> {
         name,
         status: cond.status,
         diagnosed_on: cond.diagnosed_on,
+        is_pinned: cond.is_pinned ?? false,
         documents: memberDocs.filter((d) => d.medical_condition_id === cond.id),
       }
     })
@@ -169,9 +171,10 @@ export async function getMemberConditionOptions(
 
   const { data, error } = await supabase
     .from('medical_conditions')
-    .select('id, custom_name, status, diagnosed_on, icd10_conditions(name, common_name)')
+    .select('id, custom_name, status, diagnosed_on, is_pinned, icd10_conditions(name, common_name)')
     .eq('family_member_id', memberId)
     .is('deleted_at', null)
+    .order('is_pinned', { ascending: false })
     .order('diagnosed_on', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: false })
 

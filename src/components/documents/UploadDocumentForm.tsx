@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/select'
 import { saveDocumentAction } from '@/app/(dashboard)/documents/actions'
 import type { DocumentType } from '@/types/database'
-import { Upload, X, FileText, FileImage, AlertCircle } from 'lucide-react'
+import { Upload, X, FileText, FileImage, AlertCircle, Sparkles } from 'lucide-react'
 
 const MIME_TO_EXT: Record<string, string> = {
   'application/pdf': 'pdf',
@@ -96,9 +96,10 @@ export function UploadDocumentForm({
       const supabase = createClient()
       const { data } = await supabase
         .from('medical_conditions')
-        .select('id, custom_name, status, diagnosed_on, icd10_conditions(name, common_name)')
+        .select('id, custom_name, status, diagnosed_on, is_pinned, icd10_conditions(name, common_name)')
         .eq('family_member_id', memberId)
         .is('deleted_at', null)
+        .order('is_pinned', { ascending: false })
         .order('diagnosed_on', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false })
 
@@ -283,6 +284,20 @@ export function UploadDocumentForm({
           <p className="flex items-center gap-1 text-xs text-destructive">
             <AlertCircle className="size-3" /> {fileError}
           </p>
+        )}
+
+        {/* AI extraction entry point — functional in Phase 2 */}
+        {file && !fileError && (
+          <button
+            type="button"
+            disabled
+            title="Coming soon in Phase 2"
+            className="mt-2 flex items-center gap-2 rounded-lg border border-dashed border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-700 opacity-70 cursor-not-allowed w-full"
+          >
+            <Sparkles className="size-3.5 shrink-0" />
+            <span className="font-medium">Extract details from document</span>
+            <span className="ml-auto text-amber-500 font-normal">Coming in Phase 2</span>
+          </button>
         )}
       </div>
 
