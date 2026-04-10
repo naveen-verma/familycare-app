@@ -1,5 +1,6 @@
 import { getVaultData } from '@/lib/vault'
 import { VaultView } from '@/components/documents/VaultView'
+import { toggleConditionPinAction } from '@/app/(dashboard)/documents/actions'
 
 export default async function DocumentsPage() {
   const members = await getVaultData()
@@ -12,7 +13,7 @@ export default async function DocumentsPage() {
           All your family health documents, organised by condition
         </p>
       </div>
-      <VaultView members={members} />
+      <VaultView members={members} onPinToggle={toggleConditionPinAction} />
     </div>
   )
 }

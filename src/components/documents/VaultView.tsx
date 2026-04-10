@@ -28,7 +28,8 @@ import {
 import type { VaultMember, VaultDocument, VaultCondition } from '@/lib/vault-types'
 import { DOC_TYPE_ORDER, DOC_TYPE_LABELS } from '@/lib/vault-types'
 import type { DocumentType } from '@/types/database'
-import { toggleConditionPinAction } from '@/app/(dashboard)/documents/actions'
+
+type PinToggleFn = (conditionId: string, currentlyPinned: boolean) => Promise<void>
 
 // ---- Helpers ----
 
@@ -171,9 +172,11 @@ function DocTypeGroup({
 function ConditionGroup({
   condition,
   memberId,
+  onPinToggle,
 }: {
   condition: VaultCondition
   memberId: string
+  onPinToggle: PinToggleFn
 }) {
   const [open, setOpen] = useState(false)
   const [pinned, setPinned] = useState(condition.is_pinned)
@@ -194,7 +197,7 @@ function ConditionGroup({
     setPinning(true)
     setPinned((p) => !p)
     try {
-      await toggleConditionPinAction(condition.id, pinned)
+      await onPinToggle(condition.id, pinned)
     } catch {
       setPinned((p) => !p) // revert on error
     } finally {
@@ -338,10 +341,12 @@ function MemberSection({
   member,
   open,
   onToggle,
+  onPinToggle,
 }: {
   member: VaultMember
   open: boolean
   onToggle: () => void
+  onPinToggle: PinToggleFn
 }) {
   const age = calculateAge(member.date_of_birth)
   const avatarColor = avatarColors[member.relation ?? 'other'] ?? avatarColors.other
@@ -403,6 +408,7 @@ function MemberSection({
                   key={condition.id}
                   condition={condition}
                   memberId={member.id}
+                  onPinToggle={onPinToggle}
                 />
               ))}
               {member.general_documents.length > 0 && (
@@ -418,7 +424,7 @@ function MemberSection({
 
 // ---- Main VaultView ----
 
-export function VaultView({ members }: { members: VaultMember[] }) {
+export function VaultView({ members, onPinToggle }: { members: VaultMember[]; onPinToggle: PinToggleFn }) {
   const [openMemberIds, setOpenMemberIds] = useState<Set<string>>(
     new Set(members.map((m) => m.id))
   )
@@ -489,6 +495,7 @@ export function VaultView({ members }: { members: VaultMember[] }) {
             member={member}
             open={openMemberIds.has(member.id)}
             onToggle={() => toggleMember(member.id)}
+            onPinToggle={onPinToggle}
           />
         ))}
       </div>
