@@ -3,6 +3,33 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
+export async function updateMemberHealthAction(
+  memberId: string,
+  data: {
+    height_cm: number | null
+    weight_kg: number | null
+    bmi: number | null
+    bmi_date: string | null
+  }
+) {
+  const supabase = await createClient()
+
+  const { error } = await supabase
+    .from('family_members')
+    .update({
+      height_cm: data.height_cm,
+      weight_kg: data.weight_kg,
+      bmi: data.bmi,
+      bmi_date: data.bmi_date,
+    })
+    .eq('id', memberId)
+
+  if (error) throw error
+
+  revalidatePath(`/members/${memberId}`)
+  revalidatePath('/documents')
+}
+
 export async function addConditionAction(
   memberId: string,
   formData: {

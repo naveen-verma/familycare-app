@@ -5,10 +5,11 @@ import type {
   VaultMember,
   ViewReportDocument,
   ViewReportCondition,
+  ViewReportMember,
 } from '@/lib/vault-types'
 
-export type { VaultDocument, VaultCondition, VaultMember, ViewReportDocument, ViewReportCondition }
-export { DOC_TYPE_ORDER, DOC_TYPE_LABELS } from '@/lib/vault-types'
+export type { VaultDocument, VaultCondition, VaultMember, ViewReportDocument, ViewReportCondition, ViewReportMember }
+export { DOC_TYPE_ORDER, DOC_TYPE_LABELS, REPORT_DOC_TYPE_ORDER } from '@/lib/vault-types'
 
 export async function getVaultData(): Promise<VaultMember[]> {
   const supabase = await createClient()
@@ -94,7 +95,7 @@ export async function getViewReportData(memberId: string, conditionId: string) {
   const [memberResult, conditionResult, docsResult] = await Promise.all([
     supabase
       .from('family_members')
-      .select('id, full_name, date_of_birth, blood_group')
+      .select('id, full_name, height_cm, weight_kg, bmi, bmi_date')
       .eq('id', memberId)
       .is('deleted_at', null)
       .single(),
@@ -103,7 +104,7 @@ export async function getViewReportData(memberId: string, conditionId: string) {
       ? Promise.resolve({ data: null })
       : supabase
           .from('medical_conditions')
-          .select('id, custom_name, status, diagnosed_on, icd10_conditions(name, common_name)')
+          .select('id, custom_name, status, diagnosed_on, diagnosed_by, icd10_conditions(name, common_name)')
           .eq('id', conditionId)
           .is('deleted_at', null)
           .single(),
@@ -132,6 +133,7 @@ export async function getViewReportData(memberId: string, conditionId: string) {
   ])
 
   if (memberResult.error || !memberResult.data) return null
+  const member: ViewReportMember = memberResult.data as unknown as ViewReportMember
 
   let condition: ViewReportCondition = null
   if (conditionId !== 'general' && conditionResult.data) {
@@ -142,6 +144,7 @@ export async function getViewReportData(memberId: string, conditionId: string) {
       name: ic?.common_name ?? ic?.name ?? raw.custom_name ?? 'Unknown',
       status: raw.status,
       diagnosed_on: raw.diagnosed_on,
+      diagnosed_by: raw.diagnosed_by ?? null,
     }
   }
 
@@ -154,7 +157,7 @@ export async function getViewReportData(memberId: string, conditionId: string) {
     })
   )
 
-  return { member: memberResult.data, condition, documents: docs }
+  return { member, condition, documents: docs }
 }
 
 export type UploadConditionOption = {

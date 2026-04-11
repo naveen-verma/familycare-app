@@ -5,6 +5,7 @@ import { getMemberConditions, getICD10Conditions } from '@/lib/conditions'
 import { AddConditionDialog } from '@/components/conditions/AddConditionDialog'
 import { EditConditionDialog } from '@/components/conditions/EditConditionDialog'
 import { ConditionTag } from '@/components/conditions/ConditionTag'
+import { EditMemberHealthDialog } from '@/components/members/EditMemberHealthDialog'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -14,6 +15,8 @@ import {
   HeartIcon,
   UserIcon,
   BuildingIcon,
+  RulerIcon,
+  ScaleIcon,
 } from 'lucide-react'
 
 function getInitials(name: string) {
@@ -40,6 +43,14 @@ function formatDate(dateStr: string): string {
     month: 'short',
     year: 'numeric',
   })
+}
+
+function bmiClass(bmi: number): { label: string; badgeClass: string } {
+  if (bmi < 18.5) return { label: 'Underweight', badgeClass: 'bg-blue-100 text-blue-700 border-blue-200' }
+  if (bmi < 23.0) return { label: 'Normal', badgeClass: 'bg-green-100 text-green-700 border-green-200' }
+  if (bmi < 25.0) return { label: 'Overweight', badgeClass: 'bg-yellow-100 text-yellow-700 border-yellow-200' }
+  if (bmi < 30.0) return { label: 'Obese Class I', badgeClass: 'bg-orange-100 text-orange-700 border-orange-200' }
+  return { label: 'Obese Class II', badgeClass: 'bg-red-100 text-red-700 border-red-200' }
 }
 
 const avatarColors: Record<string, string> = {
@@ -70,6 +81,9 @@ export default async function MemberProfilePage({
   const avatarColor = avatarColors[member.relation ?? 'other'] ?? avatarColors.other
   const activeConditions = conditions.filter((c) => c.status !== 'resolved')
   const resolvedConditions = conditions.filter((c) => c.status === 'resolved')
+
+  const hasHealthMetrics =
+    member.height_cm != null && member.weight_kg != null && member.bmi != null
 
   return (
     <div className="p-4 md:p-6 max-w-2xl mx-auto">
@@ -127,6 +141,65 @@ export default async function MemberProfilePage({
                 )}
               </div>
             </div>
+          </div>
+
+          {/* Health metrics */}
+          <div className="mt-4 pt-4 border-t">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Health Metrics
+              </p>
+              <EditMemberHealthDialog
+                memberId={member.id}
+                initialHeight={member.height_cm ?? null}
+                initialWeight={member.weight_kg ?? null}
+              />
+            </div>
+
+            {hasHealthMetrics ? (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="flex items-center gap-2">
+                  <RulerIcon className="size-4 text-muted-foreground shrink-0" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Height</p>
+                    <p className="text-sm font-medium">{member.height_cm} cm</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <ScaleIcon className="size-4 text-muted-foreground shrink-0" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Weight</p>
+                    <p className="text-sm font-medium">{member.weight_kg} kg</p>
+                  </div>
+                </div>
+                <div className="col-span-2 sm:col-span-2">
+                  <p className="text-xs text-muted-foreground mb-1">BMI</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-semibold">{Number(member.bmi).toFixed(1)}</span>
+                    <span
+                      className={`inline-flex h-5 items-center rounded-full border px-2 text-xs font-medium ${bmiClass(Number(member.bmi)).badgeClass}`}
+                    >
+                      {bmiClass(Number(member.bmi)).label}
+                    </span>
+                    {member.bmi_date && (
+                      <span className="text-xs text-muted-foreground">
+                        Measured {formatDate(member.bmi_date)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Not recorded.{' '}
+                <EditMemberHealthDialog
+                  memberId={member.id}
+                  initialHeight={null}
+                  initialWeight={null}
+                  triggerLabel="Add metrics"
+                />
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>

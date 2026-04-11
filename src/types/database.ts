@@ -41,6 +41,10 @@ export interface FamilyMember {
   mobile?: string
   is_primary: boolean
   profile_photo_url?: string
+  height_cm?: number | null
+  weight_kg?: number | null
+  bmi?: number | null
+  bmi_date?: string | null
   created_at: string
   updated_at: string
   deleted_at?: string

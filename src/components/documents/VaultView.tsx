@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import {
   Select,
   SelectContent,
@@ -10,14 +9,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import {
   FileText,
   FileImage,
   FolderOpen,
   ChevronDown,
-  Upload,
   Plus,
   Calendar,
   Stethoscope,
@@ -168,6 +164,8 @@ function DocTypeGroup({
 }
 
 // ---- Condition group (collapsible) ----
+// Uses a <div> header row to avoid the invalid nested-<button> HTML error.
+// The toggle area and pin button are separate interactive elements inside the div.
 
 function ConditionGroup({
   condition,
@@ -195,11 +193,12 @@ function ConditionGroup({
     e.stopPropagation()
     if (pinning) return
     setPinning(true)
-    setPinned((p) => !p)
+    const prev = pinned
+    setPinned(!prev)
     try {
-      await onPinToggle(condition.id, pinned)
+      await onPinToggle(condition.id, prev)
     } catch {
-      setPinned((p) => !p) // revert on error
+      setPinned(prev) // revert on error
     } finally {
       setPinning(false)
     }
@@ -207,60 +206,64 @@ function ConditionGroup({
 
   return (
     <div className="border rounded-lg overflow-hidden">
-      <button
-        onClick={() => setOpen((p) => !p)}
-        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/40 transition-colors"
-        aria-expanded={open}
-      >
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-medium">{condition.name}</span>
-            <span
-              className={`inline-flex h-5 items-center rounded-full border px-2 text-xs font-medium capitalize ${statusStyles[condition.status] ?? statusStyles.monitoring}`}
-            >
-              {condition.status}
-            </span>
-            {pinned && (
-              <span className="inline-flex h-5 items-center rounded-full bg-indigo-100 text-indigo-700 px-2 text-xs font-medium">
-                Pinned
+      {/* Header row — div with two interactive zones to avoid nested <button> */}
+      <div className="flex items-center gap-1 hover:bg-muted/40 transition-colors">
+        {/* Expand/collapse toggle — takes up most of the row */}
+        <button
+          type="button"
+          onClick={() => setOpen((p) => !p)}
+          className="flex-1 flex items-start gap-3 px-4 py-3 text-left min-w-0"
+          aria-expanded={open}
+        >
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-medium">{condition.name}</span>
+              <span
+                className={`inline-flex h-5 items-center rounded-full border px-2 text-xs font-medium capitalize ${statusStyles[condition.status] ?? statusStyles.monitoring}`}
+              >
+                {condition.status}
               </span>
-            )}
-          </div>
-          <div className="flex items-center gap-3 mt-0.5">
-            {condition.diagnosed_on && (
+              {pinned && (
+                <span className="inline-flex h-5 items-center rounded-full bg-indigo-100 text-indigo-700 px-2 text-xs font-medium">
+                  Pinned
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-3 mt-0.5">
+              {condition.diagnosed_on && (
+                <span className="text-xs text-muted-foreground">
+                  Diagnosed {formatDate(condition.diagnosed_on)}
+                </span>
+              )}
               <span className="text-xs text-muted-foreground">
-                Diagnosed {formatDate(condition.diagnosed_on)}
+                {totalDocs} {totalDocs === 1 ? 'document' : 'documents'}
               </span>
-            )}
-            <span className="text-xs text-muted-foreground">
-              {totalDocs} {totalDocs === 1 ? 'document' : 'documents'}
-            </span>
+            </div>
           </div>
-        </div>
+          <ChevronDown
+            className={`size-4 text-muted-foreground shrink-0 mt-1 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          />
+        </button>
+
+        {/* Pin button — sits outside the accordion button */}
         <button
           type="button"
           onClick={handlePin}
           disabled={pinning}
           aria-label={pinned ? 'Unpin condition' : 'Pin condition to top'}
-          className="shrink-0 p-1.5 rounded-md hover:bg-muted transition-colors disabled:opacity-50"
+          className="shrink-0 p-2 mr-2 rounded-md hover:bg-muted transition-colors disabled:opacity-50"
         >
           <Pin
             className={`size-4 transition-colors ${pinned ? 'fill-indigo-500 text-indigo-500' : 'text-muted-foreground'}`}
           />
         </button>
-        <ChevronDown
-          className={`size-4 text-muted-foreground shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
-        />
-      </button>
+      </div>
 
       {open && (
         <div className="border-t bg-background px-1 py-2">
           {totalDocs === 0 ? (
             <div className="text-center py-6">
               <p className="text-xs text-muted-foreground">No documents for this condition</p>
-              <Button asChild size="sm" variant="outline" className="mt-2 h-7 text-xs">
-                <Link href="/documents/upload">Upload</Link>
-              </Button>
             </div>
           ) : (
             DOC_TYPE_ORDER.map((type) => (
@@ -301,6 +304,7 @@ function GeneralDocsGroup({
   return (
     <div className="border rounded-lg overflow-hidden">
       <button
+        type="button"
         onClick={() => setOpen((p) => !p)}
         className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/40 transition-colors"
         aria-expanded={open}
@@ -309,7 +313,8 @@ function GeneralDocsGroup({
           <span className="text-sm font-medium text-muted-foreground">General Documents</span>
           <div className="mt-0.5">
             <span className="text-xs text-muted-foreground">
-              {docs.length} {docs.length === 1 ? 'document' : 'documents'} · Not linked to a condition
+              {docs.length} {docs.length === 1 ? 'document' : 'documents'} · Not linked to a
+              condition
             </span>
           </div>
         </div>
@@ -335,7 +340,7 @@ function GeneralDocsGroup({
   )
 }
 
-// ---- Member section (collapsible) ----
+// ---- Member section (accordion) ----
 
 function MemberSection({
   member,
@@ -361,6 +366,7 @@ function MemberSection({
     <div className="rounded-xl border overflow-hidden">
       {/* Member header */}
       <button
+        type="button"
         onClick={onToggle}
         className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-muted/40 transition-colors"
         aria-expanded={open}
@@ -376,6 +382,11 @@ function MemberSection({
             {[
               age !== null ? `${age} yrs` : null,
               member.blood_group,
+              member.relation
+                ? member.relation === 'self'
+                  ? 'You'
+                  : member.relation
+                : null,
               `${totalDocs} ${totalDocs === 1 ? 'doc' : 'docs'}`,
             ]
               .filter(Boolean)
@@ -393,13 +404,7 @@ function MemberSection({
           {!hasContent ? (
             <div className="text-center py-8">
               <FolderOpen className="size-8 text-muted-foreground mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">No documents uploaded yet</p>
-              <Button asChild size="sm" className="mt-3">
-                <Link href="/documents/upload">
-                  <Upload className="size-3.5 mr-1.5" />
-                  Upload document
-                </Link>
-              </Button>
+              <p className="text-sm text-muted-foreground">No medical records yet</p>
             </div>
           ) : (
             <>
@@ -424,16 +429,23 @@ function MemberSection({
 
 // ---- Main VaultView ----
 
-export function VaultView({ members, onPinToggle }: { members: VaultMember[]; onPinToggle: PinToggleFn }) {
+export function VaultView({
+  members,
+  onPinToggle,
+}: {
+  members: VaultMember[]
+  onPinToggle: PinToggleFn
+}) {
+  // Only first member expanded by default
   const [openMemberIds, setOpenMemberIds] = useState<Set<string>>(
-    new Set(members.map((m) => m.id))
+    () => (members.length > 0 ? new Set([members[0].id]) : new Set())
   )
   const [filterMemberId, setFilterMemberId] = useState('all')
 
   function handleFilterChange(value: string) {
     setFilterMemberId(value)
     if (value === 'all') {
-      setOpenMemberIds(new Set(members.map((m) => m.id)))
+      setOpenMemberIds(new Set(members.length > 0 ? [members[0].id] : []))
     } else {
       setOpenMemberIds(new Set([value]))
     }
@@ -461,9 +473,9 @@ export function VaultView({ members, onPinToggle }: { members: VaultMember[]; on
         <p className="text-xs text-muted-foreground mt-1 mb-4">
           Add family members to get started
         </p>
-        <Button asChild size="sm">
-          <Link href="/dashboard">Go to Dashboard</Link>
-        </Button>
+        <Link href="/dashboard" className="text-sm text-primary underline underline-offset-2">
+          Go to Dashboard
+        </Link>
       </div>
     )
   }
@@ -500,7 +512,7 @@ export function VaultView({ members, onPinToggle }: { members: VaultMember[]; on
         ))}
       </div>
 
-      {/* FAB upload button */}
+      {/* FAB — only upload entry point */}
       <Link
         href="/documents/upload"
         className="fixed bottom-20 right-4 md:bottom-6 md:right-6 size-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg hover:bg-primary/90 transition-colors z-40"

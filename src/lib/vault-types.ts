@@ -36,6 +36,15 @@ export type VaultMember = {
   general_documents: VaultDocument[]
 }
 
+export type ViewReportMember = {
+  id: string
+  full_name: string
+  height_cm: number | null
+  weight_kg: number | null
+  bmi: number | null
+  bmi_date: string | null
+}
+
 export type ViewReportDocument = VaultDocument & { signed_url: string | null }
 
 export type ViewReportCondition = {
@@ -43,6 +52,7 @@ export type ViewReportCondition = {
   name: string
   status: string
   diagnosed_on: string | null
+  diagnosed_by: string | null
 } | null
 
 // ---- Shared constants (safe for client components) ----
@@ -54,6 +64,16 @@ export const DOC_TYPE_ORDER: DocumentType[] = [
   'vaccination',
   'insurance',
   'other',
+]
+
+// Report page order: Other before Insurance (per spec)
+export const REPORT_DOC_TYPE_ORDER: DocumentType[] = [
+  'prescription',
+  'report',
+  'scan',
+  'vaccination',
+  'other',
+  'insurance',
 ]
 
 export const DOC_TYPE_LABELS: Record<DocumentType, string> = {

@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 import { getFamilyMembers } from '@/lib/members'
 import { getFamilyGroupId } from '@/app/(dashboard)/documents/actions'
 import { UploadDocumentForm } from '@/components/documents/UploadDocumentForm'
@@ -7,6 +8,18 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 
 export default async function UploadDocumentPage() {
+  // Only allow access from the Document Vault page (/documents)
+  const headersList = await headers()
+  const referer = headersList.get('referer') ?? ''
+  let fromVault = false
+  try {
+    const refUrl = new URL(referer)
+    fromVault = refUrl.pathname === '/documents'
+  } catch {
+    fromVault = false
+  }
+  if (!fromVault) redirect('/documents')
+
   const [members, familyGroupId] = await Promise.all([
     getFamilyMembers(),
     getFamilyGroupId(),

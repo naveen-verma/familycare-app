@@ -10,6 +10,10 @@ export async function addMemberAction(formData: {
   blood_group?: string
   relation?: string
   mobile?: string
+  height_cm?: number | null
+  weight_kg?: number | null
+  bmi?: number | null
+  bmi_date?: string | null
 }) {
   const supabase = await createClient()
 
@@ -43,6 +47,10 @@ export async function addMemberAction(formData: {
       relation: formData.relation || null,
       mobile: formData.mobile || null,
       is_primary: false,
+      height_cm: formData.height_cm ?? null,
+      weight_kg: formData.weight_kg ?? null,
+      bmi: formData.bmi ?? null,
+      bmi_date: formData.bmi_date ?? null,
     })
 
   if (error) throw error
