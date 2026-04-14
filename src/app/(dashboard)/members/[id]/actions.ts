@@ -68,6 +68,7 @@ export async function editConditionAction(
   memberId: string,
   formData: {
     status: string
+    diagnosed_by?: string
     notes?: string
   }
 ) {
@@ -77,6 +78,7 @@ export async function editConditionAction(
     .from('medical_conditions')
     .update({
       status: formData.status,
+      diagnosed_by: formData.diagnosed_by || null,
       notes: formData.notes || null,
       updated_at: new Date().toISOString(),
     })
@@ -110,6 +112,7 @@ export async function addConsultationAction(
     hospital_name?: string
     consultation_date?: string
     notes?: string
+    consultation_type?: string
   }
 ) {
   const supabase = await createClient()
@@ -122,6 +125,7 @@ export async function addConsultationAction(
       hospital_name: formData.hospital_name || null,
       consultation_date: formData.consultation_date || null,
       notes: formData.notes || null,
+      consultation_type: formData.consultation_type || 'visit',
     })
 
   if (error) throw error

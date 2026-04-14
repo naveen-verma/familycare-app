@@ -45,6 +45,16 @@ function formatDate(dateStr: string): string {
   })
 }
 
+const CONSULTATION_TYPE_BADGE: Record<string, { label: string; badge: string }> = {
+  visit:           { label: 'Visit',           badge: 'bg-blue-100 text-blue-700' },
+  surgery:         { label: 'Surgery',         badge: 'bg-red-100 text-red-700' },
+  test:            { label: 'Test / Checkup',  badge: 'bg-purple-100 text-purple-700' },
+  vaccination:     { label: 'Vaccination',     badge: 'bg-green-100 text-green-700' },
+  hospitalization: { label: 'Hospitalization', badge: 'bg-orange-100 text-orange-700' },
+  therapy:         { label: 'Therapy',         badge: 'bg-teal-100 text-teal-700' },
+  other:           { label: 'Other',           badge: 'bg-gray-100 text-gray-700' },
+}
+
 function bmiClass(bmi: number): { label: string; badgeClass: string } {
   if (bmi < 18.5) return { label: 'Underweight', badgeClass: 'bg-blue-100 text-blue-700 border-blue-200' }
   if (bmi < 23.0) return { label: 'Normal', badgeClass: 'bg-green-100 text-green-700 border-green-200' }
@@ -260,44 +270,83 @@ export default async function MemberProfilePage({
                       </div>
 
                       {/* Consultations */}
-                      {condition.condition_consultations.length > 0 && (
+                      {(condition.diagnosed_by || condition.condition_consultations.length > 0) && (
                         <div className="mt-2 space-y-1.5 border-t border-border pt-2">
-                          {condition.condition_consultations.map((c) => (
-                            <div
-                              key={c.id}
-                              className="flex items-start gap-2 text-xs text-muted-foreground"
-                            >
+                          {/* Fix C: Initial Diagnosis as first read-only entry */}
+                          {condition.diagnosed_by && (
+                            <div className="flex items-start gap-2 text-xs text-muted-foreground rounded-md bg-gray-50 px-2 py-1.5">
                               <UserIcon className="size-3 shrink-0 mt-0.5" />
-                              <div className="min-w-0">
-                                <span className="font-medium text-foreground">
-                                  {c.doctor_name}
+                              <div className="min-w-0 flex-1">
+                                <span className={`inline-flex h-4 items-center rounded-full px-1.5 text-[10px] font-medium bg-gray-100 text-gray-600 mb-0.5`}>
+                                  Initial Diagnosis
                                 </span>
-                                {c.hospital_name && (
-                                  <>
-                                    <span className="mx-1">·</span>
-                                    <span className="inline-flex items-center gap-0.5">
-                                      <BuildingIcon className="size-2.5" />
-                                      {c.hospital_name}
-                                    </span>
-                                  </>
-                                )}
-                                {c.consultation_date && (
-                                  <>
-                                    <span className="mx-1">·</span>
-                                    <span className="inline-flex items-center gap-0.5">
-                                      <CalendarIcon className="size-2.5" />
-                                      {formatDate(c.consultation_date)}
-                                    </span>
-                                  </>
-                                )}
-                                {c.notes && (
+                                <div>
+                                  <span className="font-medium text-foreground">
+                                    {condition.diagnosed_by}
+                                  </span>
+                                  {condition.diagnosed_on && (
+                                    <>
+                                      <span className="mx-1">·</span>
+                                      <span className="inline-flex items-center gap-0.5">
+                                        <CalendarIcon className="size-2.5" />
+                                        {formatDate(condition.diagnosed_on)}
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+                                {condition.notes && (
                                   <p className="text-muted-foreground mt-0.5 truncate">
-                                    {c.notes}
+                                    {condition.notes}
                                   </p>
                                 )}
                               </div>
                             </div>
-                          ))}
+                          )}
+                          {/* Fix D: Regular consultations with type badge */}
+                          {condition.condition_consultations.map((c) => {
+                            const typeCfg = CONSULTATION_TYPE_BADGE[c.consultation_type ?? ''] ?? CONSULTATION_TYPE_BADGE.other
+                            return (
+                              <div
+                                key={c.id}
+                                className="flex items-start gap-2 text-xs text-muted-foreground"
+                              >
+                                <UserIcon className="size-3 shrink-0 mt-0.5" />
+                                <div className="min-w-0">
+                                  <span className={`inline-flex h-4 items-center rounded-full px-1.5 text-[10px] font-medium mb-0.5 ${typeCfg.badge}`}>
+                                    {typeCfg.label}
+                                  </span>
+                                  <div>
+                                    <span className="font-medium text-foreground">
+                                      {c.doctor_name}
+                                    </span>
+                                    {c.hospital_name && (
+                                      <>
+                                        <span className="mx-1">·</span>
+                                        <span className="inline-flex items-center gap-0.5">
+                                          <BuildingIcon className="size-2.5" />
+                                          {c.hospital_name}
+                                        </span>
+                                      </>
+                                    )}
+                                    {c.consultation_date && (
+                                      <>
+                                        <span className="mx-1">·</span>
+                                        <span className="inline-flex items-center gap-0.5">
+                                          <CalendarIcon className="size-2.5" />
+                                          {formatDate(c.consultation_date)}
+                                        </span>
+                                      </>
+                                    )}
+                                  </div>
+                                  {c.notes && (
+                                    <p className="text-muted-foreground mt-0.5 truncate">
+                                      {c.notes}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            )
+                          })}
                         </div>
                       )}
                     </CardContent>
@@ -328,23 +377,43 @@ export default async function MemberProfilePage({
                           memberId={member.id}
                         />
                       </div>
-                      {condition.condition_consultations.length > 0 && (
+                      {(condition.diagnosed_by || condition.condition_consultations.length > 0) && (
                         <div className="mt-1.5 space-y-1 border-t border-border pt-1.5">
-                          {condition.condition_consultations.map((c) => (
-                            <div
-                              key={c.id}
-                              className="flex items-center gap-1.5 text-xs text-muted-foreground"
-                            >
+                          {/* Fix C: Initial Diagnosis read-only entry */}
+                          {condition.diagnosed_by && (
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground rounded bg-gray-50 px-1.5 py-1">
                               <UserIcon className="size-3 shrink-0" />
-                              <span>{c.doctor_name}</span>
-                              {c.hospital_name && (
-                                <span>· {c.hospital_name}</span>
-                              )}
-                              {c.consultation_date && (
-                                <span>· {formatDate(c.consultation_date)}</span>
+                              <span className="inline-flex h-4 items-center rounded-full px-1.5 text-[10px] font-medium bg-gray-100 text-gray-600">
+                                Initial Diagnosis
+                              </span>
+                              <span>{condition.diagnosed_by}</span>
+                              {condition.diagnosed_on && (
+                                <span>· {formatDate(condition.diagnosed_on)}</span>
                               )}
                             </div>
-                          ))}
+                          )}
+                          {/* Fix D: Consultations with type badge */}
+                          {condition.condition_consultations.map((c) => {
+                            const typeCfg = CONSULTATION_TYPE_BADGE[c.consultation_type ?? ''] ?? CONSULTATION_TYPE_BADGE.other
+                            return (
+                              <div
+                                key={c.id}
+                                className="flex items-center gap-1.5 text-xs text-muted-foreground"
+                              >
+                                <UserIcon className="size-3 shrink-0" />
+                                <span className={`inline-flex h-4 items-center rounded-full px-1.5 text-[10px] font-medium ${typeCfg.badge}`}>
+                                  {typeCfg.label}
+                                </span>
+                                <span>{c.doctor_name}</span>
+                                {c.hospital_name && (
+                                  <span>· {c.hospital_name}</span>
+                                )}
+                                {c.consultation_date && (
+                                  <span>· {formatDate(c.consultation_date)}</span>
+                                )}
+                              </div>
+                            )
+                          })}
                         </div>
                       )}
                     </CardContent>

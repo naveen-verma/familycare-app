@@ -34,10 +34,28 @@ import {
 import type { ConditionWithICD10 } from '@/lib/conditions'
 import type { ConditionConsultation } from '@/types/database'
 
+// ── Consultation type config ──────────────────────────────────────────────────
+
+const CONSULTATION_TYPES = [
+  { value: 'visit',           label: 'Visit',           badge: 'bg-blue-100 text-blue-700' },
+  { value: 'surgery',         label: 'Surgery',         badge: 'bg-red-100 text-red-700' },
+  { value: 'test',            label: 'Test / Checkup',  badge: 'bg-purple-100 text-purple-700' },
+  { value: 'vaccination',     label: 'Vaccination',     badge: 'bg-green-100 text-green-700' },
+  { value: 'hospitalization', label: 'Hospitalization', badge: 'bg-orange-100 text-orange-700' },
+  { value: 'therapy',         label: 'Therapy',         badge: 'bg-teal-100 text-teal-700' },
+  { value: 'other',           label: 'Other',           badge: 'bg-gray-100 text-gray-700' },
+] as const
+
+function consultationTypeBadge(type: string | null | undefined) {
+  const cfg = CONSULTATION_TYPES.find((t) => t.value === type) ?? CONSULTATION_TYPES[0]
+  return { label: cfg.label, badge: cfg.badge }
+}
+
 // ── Edit condition fields ─────────────────────────────────────────────────────
 
 const conditionSchema = z.object({
   status: z.string().min(1),
+  diagnosed_by: z.string().optional(),
   notes: z.string().optional(),
 })
 type ConditionForm = z.infer<typeof conditionSchema>
@@ -75,6 +93,7 @@ export function EditConditionDialog({
   const [savingCondition, setSavingCondition] = useState(false)
   const [conditionError, setConditionError] = useState<string | null>(null)
   const [showAddConsultation, setShowAddConsultation] = useState(false)
+  const [consultationType, setConsultationType] = useState('visit')
   const [savingConsultation, setSavingConsultation] = useState(false)
   const [consultationError, setConsultationError] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -86,7 +105,7 @@ export function EditConditionDialog({
     condition.custom_name ??
     'Condition'
 
-  // Condition form
+  // Condition form — Fix A: include diagnosed_by
   const {
     register: regCondition,
     handleSubmit: handleConditionSubmit,
@@ -96,6 +115,7 @@ export function EditConditionDialog({
     resolver: zodResolver(conditionSchema),
     defaultValues: {
       status: condition.status,
+      diagnosed_by: condition.diagnosed_by ?? '',
       notes: condition.notes ?? '',
     },
   })
@@ -127,8 +147,12 @@ export function EditConditionDialog({
     setSavingConsultation(true)
     setConsultationError(null)
     try {
-      await addConsultationAction(condition.id, memberId, data)
+      await addConsultationAction(condition.id, memberId, {
+        ...data,
+        consultation_type: consultationType,
+      })
       resetConsultation()
+      setConsultationType('visit')
       setShowAddConsultation(false)
       router.refresh()
     } catch {
@@ -189,10 +213,20 @@ export function EditConditionDialog({
             </Select>
           </div>
 
+          {/* Fix A: diagnosed_by pre-filled */}
           <div className="space-y-1.5">
-            <Label htmlFor="notes">Notes</Label>
+            <Label htmlFor="edit_diagnosed_by">Doctor / Hospital</Label>
+            <Input
+              id="edit_diagnosed_by"
+              {...regCondition('diagnosed_by')}
+              placeholder="e.g. Dr. Gupta, AIIMS Delhi"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="edit_notes">Notes</Label>
             <Textarea
-              id="notes"
+              id="edit_notes"
               {...regCondition('notes')}
               placeholder="Any notes about this condition..."
               rows={2}
@@ -227,50 +261,57 @@ export function EditConditionDialog({
             )}
           </div>
 
-          {/* Existing consultations */}
+          {/* Existing consultations — Fix D: type badge */}
           {condition.condition_consultations.length > 0 ? (
             <div className="space-y-2">
-              {condition.condition_consultations.map((c) => (
-                <div
-                  key={c.id}
-                  className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2"
-                >
-                  <div className="flex-1 min-w-0 space-y-0.5">
-                    <div className="flex items-center gap-1.5">
-                      <UserIcon className="size-3 text-muted-foreground shrink-0" />
-                      <span className="text-sm font-medium">{c.doctor_name}</span>
-                    </div>
-                    {c.hospital_name && (
-                      <div className="flex items-center gap-1.5">
-                        <BuildingIcon className="size-3 text-muted-foreground shrink-0" />
-                        <span className="text-xs text-muted-foreground">{c.hospital_name}</span>
-                      </div>
-                    )}
-                    {c.consultation_date && (
-                      <div className="flex items-center gap-1.5">
-                        <CalendarIcon className="size-3 text-muted-foreground shrink-0" />
-                        <span className="text-xs text-muted-foreground">
-                          {formatDate(c.consultation_date)}
-                        </span>
-                      </div>
-                    )}
-                    {c.notes && (
-                      <p className="text-xs text-muted-foreground mt-0.5">{c.notes}</p>
-                    )}
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    disabled={deletingId === c.id}
-                    onClick={() => onDeleteConsultation(c)}
-                    className="shrink-0 text-muted-foreground hover:text-destructive"
+              {condition.condition_consultations.map((c) => {
+                const { label, badge } = consultationTypeBadge(c.consultation_type)
+                return (
+                  <div
+                    key={c.id}
+                    className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2"
                   >
-                    <Trash2Icon className="size-3.5" />
-                    <span className="sr-only">Delete consultation</span>
-                  </Button>
-                </div>
-              ))}
+                    <div className="flex-1 min-w-0 space-y-0.5">
+                      {/* Type badge */}
+                      <span className={`inline-flex h-4 items-center rounded-full px-1.5 text-[10px] font-medium ${badge}`}>
+                        {label}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <UserIcon className="size-3 text-muted-foreground shrink-0" />
+                        <span className="text-sm font-medium">{c.doctor_name}</span>
+                      </div>
+                      {c.hospital_name && (
+                        <div className="flex items-center gap-1.5">
+                          <BuildingIcon className="size-3 text-muted-foreground shrink-0" />
+                          <span className="text-xs text-muted-foreground">{c.hospital_name}</span>
+                        </div>
+                      )}
+                      {c.consultation_date && (
+                        <div className="flex items-center gap-1.5">
+                          <CalendarIcon className="size-3 text-muted-foreground shrink-0" />
+                          <span className="text-xs text-muted-foreground">
+                            {formatDate(c.consultation_date)}
+                          </span>
+                        </div>
+                      )}
+                      {c.notes && (
+                        <p className="text-xs text-muted-foreground mt-0.5">{c.notes}</p>
+                      )}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      disabled={deletingId === c.id}
+                      onClick={() => onDeleteConsultation(c)}
+                      className="shrink-0 text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2Icon className="size-3.5" />
+                      <span className="sr-only">Delete consultation</span>
+                    </Button>
+                  </div>
+                )
+              })}
             </div>
           ) : (
             !showAddConsultation && (
@@ -280,7 +321,7 @@ export function EditConditionDialog({
             )
           )}
 
-          {/* Add consultation inline form */}
+          {/* Add consultation inline form — Fix B: consultation_type dropdown */}
           {showAddConsultation && (
             <form
               onSubmit={handleConsultationSubmit(onAddConsultation)}
@@ -289,6 +330,23 @@ export function EditConditionDialog({
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 New Consultation
               </p>
+
+              {/* Fix B: Type of Visit */}
+              <div className="space-y-1.5">
+                <Label>Type of Visit</Label>
+                <Select value={consultationType} onValueChange={setConsultationType}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CONSULTATION_TYPES.map((t) => (
+                      <SelectItem key={t.value} value={t.value}>
+                        {t.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
               <div className="space-y-1.5">
                 <Label htmlFor="doctor_name">Doctor Name *</Label>
@@ -346,6 +404,7 @@ export function EditConditionDialog({
                   onClick={() => {
                     setShowAddConsultation(false)
                     resetConsultation()
+                    setConsultationType('visit')
                     setConsultationError(null)
                   }}
                 >
