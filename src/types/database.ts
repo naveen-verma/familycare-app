@@ -6,6 +6,7 @@ export type ConditionStatus = 'active' | 'resolved' | 'chronic' | 'monitoring'
 export type DocumentType = 'prescription' | 'report' | 'scan' | 'insurance' | 'vaccination' | 'other'
 export type EventType = 'visit' | 'surgery' | 'test' | 'vaccination' | 'hospitalization' | 'therapy' | 'other'
 export type MedicationFrequency = 'once daily' | 'twice daily' | 'three times daily' | 'four times daily' | 'every alternate day' | 'weekly' | 'as needed' | 'other'
+export type ConsultationType = 'visit' | 'surgery' | 'test' | 'vaccination' | 'hospitalization' | 'therapy' | 'other'
 
 export interface User {
   id: string
@@ -119,10 +120,12 @@ export interface Medication {
 export interface ConditionConsultation {
   id: string
   medical_condition_id: string
+  consultation_type: ConsultationType
   doctor_name: string
   hospital_name?: string
   consultation_date?: string
   notes?: string
+  is_pinned: boolean
   created_at: string
   updated_at: string
   deleted_at?: string
@@ -140,6 +143,7 @@ export interface MedicalEvent {
   notes?: string
   follow_up_date?: string
   follow_up_sent: boolean
+  is_pinned: boolean
   created_at: string
   updated_at: string
   deleted_at?: string
