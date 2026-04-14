@@ -106,12 +106,13 @@ export function MedicationForm({
     setLoadingConditions(true)
     setConditionId('none')
     const supabase = createClient()
-    supabase
-      .from('medical_conditions')
-      .select('id, custom_name, icd10_conditions(name, common_name)')
-      .eq('family_member_id', memberId)
-      .is('deleted_at', null)
-      .then(({ data }) => {
+    const load = async () => {
+      try {
+        const { data } = await supabase
+          .from('medical_conditions')
+          .select('id, custom_name, icd10_conditions(name, common_name)')
+          .eq('family_member_id', memberId)
+          .is('deleted_at', null)
         const opts: ConditionOption[] = (data || []).map((c: any) => {
           const ic = c.icd10_conditions as { name: string; common_name: string | null } | null
           return { id: c.id, name: ic?.common_name ?? ic?.name ?? c.custom_name ?? 'Unknown' }
@@ -121,8 +122,11 @@ export function MedicationForm({
         if (editMode && initialValues?.medical_condition_id) {
           setConditionId(initialValues.medical_condition_id)
         }
-      })
-      .finally(() => setLoadingConditions(false))
+      } finally {
+        setLoadingConditions(false)
+      }
+    }
+    load()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [memberId])
 
