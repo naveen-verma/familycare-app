@@ -1,6 +1,7 @@
 import { Sidebar } from '@/components/layout/Sidebar'
 import { BottomNav } from '@/components/layout/BottomNav'
 import { SessionGuard } from '@/components/layout/SessionGuard'
+import { Toaster } from '@/components/ui/sonner'
 
 export default function DashboardLayout({
   children,
@@ -16,6 +17,7 @@ export default function DashboardLayout({
         </main>
         <BottomNav />
       </div>
+      <Toaster />
     </SessionGuard>
   )
 }
