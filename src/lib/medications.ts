@@ -27,7 +27,11 @@ export async function getMedication(id: string): Promise<MedicationWithCondition
     .is('deleted_at', null)
     .single()
 
-  if (error || !data) return null
+  if (error) {
+    console.error('[getMedication] Supabase error:', JSON.stringify(error))
+    return null
+  }
+  if (!data) return null
   return data as unknown as MedicationWithCondition
 }
 
