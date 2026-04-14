@@ -261,9 +261,34 @@ export function EditConditionDialog({
             )}
           </div>
 
-          {/* Existing consultations — Fix D: type badge */}
-          {condition.condition_consultations.length > 0 ? (
+          {/* Existing consultations */}
+          {(condition.diagnosed_by || condition.condition_consultations.length > 0) ? (
             <div className="space-y-2">
+              {/* Initial Diagnosis — read-only first entry */}
+              {condition.diagnosed_by && (
+                <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/10 px-3 py-2">
+                  <div className="flex-1 min-w-0 space-y-0.5">
+                    <span className="inline-flex h-4 items-center rounded-full px-1.5 text-[10px] font-medium bg-gray-100 text-gray-600">
+                      Initial Diagnosis
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <UserIcon className="size-3 text-muted-foreground shrink-0" />
+                      <span className="text-sm font-medium">{condition.diagnosed_by}</span>
+                    </div>
+                    {condition.diagnosed_on && (
+                      <div className="flex items-center gap-1.5">
+                        <CalendarIcon className="size-3 text-muted-foreground shrink-0" />
+                        <span className="text-xs text-muted-foreground">
+                          {formatDate(condition.diagnosed_on)}
+                        </span>
+                      </div>
+                    )}
+                    {condition.notes && (
+                      <p className="text-xs text-muted-foreground mt-0.5">{condition.notes}</p>
+                    )}
+                  </div>
+                </div>
+              )}
               {condition.condition_consultations.map((c) => {
                 const { label, badge } = consultationTypeBadge(c.consultation_type)
                 return (
@@ -320,6 +345,7 @@ export function EditConditionDialog({
               </p>
             )
           )}
+
 
           {/* Add consultation inline form — Fix B: consultation_type dropdown */}
           {showAddConsultation && (
