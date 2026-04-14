@@ -28,6 +28,16 @@ import { PlusIcon, SearchIcon, XIcon } from 'lucide-react'
 import { addConditionAction } from '@/app/(dashboard)/members/[id]/actions'
 import type { ICD10Condition } from '@/types/database'
 
+const CONSULTATION_TYPES = [
+  { value: 'visit',           label: 'Visit' },
+  { value: 'surgery',         label: 'Surgery' },
+  { value: 'test',            label: 'Test / Checkup' },
+  { value: 'vaccination',     label: 'Vaccination' },
+  { value: 'hospitalization', label: 'Hospitalization' },
+  { value: 'therapy',         label: 'Therapy' },
+  { value: 'other',           label: 'Other' },
+] as const
+
 const schema = z.object({
   status: z.string().min(1, 'Please select a status'),
   diagnosed_on: z.string().optional(),
@@ -50,6 +60,7 @@ export function AddConditionDialog({
   const [search, setSearch] = useState('')
   const [selectedCondition, setSelectedCondition] = useState<ICD10Condition | null>(null)
   const [customName, setCustomName] = useState('')
+  const [consultationType, setConsultationType] = useState('visit')
   const router = useRouter()
 
   const filtered =
@@ -91,11 +102,13 @@ export function AddConditionDialog({
         diagnosed_on: data.diagnosed_on,
         diagnosed_by: data.diagnosed_by,
         notes: data.notes,
+        consultation_type: consultationType,
       })
       reset()
       setSearch('')
       setSelectedCondition(null)
       setCustomName('')
+      setConsultationType('visit')
       setOpen(false)
       router.refresh()
     } catch {
@@ -110,6 +123,7 @@ export function AddConditionDialog({
     setSearch('')
     setSelectedCondition(null)
     setCustomName('')
+    setConsultationType('visit')
     setFormError(null)
   }
 
@@ -232,6 +246,22 @@ export function AddConditionDialog({
               <Label htmlFor="diagnosed_on">Diagnosed On</Label>
               <Input id="diagnosed_on" type="date" {...register('diagnosed_on')} />
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Type of Visit</Label>
+            <Select value={consultationType} onValueChange={setConsultationType}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CONSULTATION_TYPES.map((t) => (
+                  <SelectItem key={t.value} value={t.value}>
+                    {t.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-1.5">

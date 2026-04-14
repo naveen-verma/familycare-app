@@ -272,8 +272,8 @@ export default async function MemberProfilePage({
                       {/* Consultations */}
                       {(condition.diagnosed_by || condition.condition_consultations.length > 0) && (
                         <div className="mt-2 space-y-1.5 border-t border-border pt-2">
-                          {/* Fix C: Initial Diagnosis as first read-only entry */}
-                          {condition.diagnosed_by && (
+                          {/* Initial Diagnosis fallback — only shown when no consultation records exist */}
+                          {condition.diagnosed_by && condition.condition_consultations.length === 0 && (
                             <div className="flex items-start gap-2 text-xs text-muted-foreground rounded-md bg-gray-50 px-2 py-1.5">
                               <UserIcon className="size-3 shrink-0 mt-0.5" />
                               <div className="min-w-0 flex-1">
@@ -379,8 +379,8 @@ export default async function MemberProfilePage({
                       </div>
                       {(condition.diagnosed_by || condition.condition_consultations.length > 0) && (
                         <div className="mt-1.5 space-y-1 border-t border-border pt-1.5">
-                          {/* Fix C: Initial Diagnosis read-only entry */}
-                          {condition.diagnosed_by && (
+                          {/* Initial Diagnosis fallback — only shown when no consultation records exist */}
+                          {condition.diagnosed_by && condition.condition_consultations.length === 0 && (
                             <div className="flex items-center gap-1.5 text-xs text-muted-foreground rounded bg-gray-50 px-1.5 py-1">
                               <UserIcon className="size-3 shrink-0" />
                               <span className="inline-flex h-4 items-center rounded-full px-1.5 text-[10px] font-medium bg-gray-100 text-gray-600">

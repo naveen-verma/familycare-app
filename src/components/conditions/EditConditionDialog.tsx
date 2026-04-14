@@ -264,8 +264,8 @@ export function EditConditionDialog({
           {/* Existing consultations */}
           {(condition.diagnosed_by || condition.condition_consultations.length > 0) ? (
             <div className="space-y-2">
-              {/* Initial Diagnosis — read-only first entry */}
-              {condition.diagnosed_by && (
+              {/* Initial Diagnosis fallback — only shown when no consultation records exist */}
+              {condition.diagnosed_by && condition.condition_consultations.length === 0 && (
                 <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/10 px-3 py-2">
                   <div className="flex-1 min-w-0 space-y-0.5">
                     <span className="inline-flex h-4 items-center rounded-full px-1.5 text-[10px] font-medium bg-gray-100 text-gray-600">

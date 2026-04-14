@@ -39,11 +39,12 @@ export async function addConditionAction(
     diagnosed_on?: string
     diagnosed_by?: string
     notes?: string
+    consultation_type?: string
   }
 ) {
   const supabase = await createClient()
 
-  const { error } = await supabase
+  const { data: condition, error } = await supabase
     .from('medical_conditions')
     .insert({
       family_member_id: memberId,
@@ -56,8 +57,22 @@ export async function addConditionAction(
       specialist_matched: false,
       second_opinion_requested: false,
     })
+    .select('id')
+    .single()
 
   if (error) throw error
+
+  // Auto-create a consultation record for the initial diagnosis visit
+  if (formData.diagnosed_by && condition) {
+    await supabase.from('condition_consultations').insert({
+      medical_condition_id: condition.id,
+      doctor_name: formData.diagnosed_by,
+      hospital_name: null,
+      consultation_date: formData.diagnosed_on || null,
+      notes: formData.notes || null,
+      consultation_type: formData.consultation_type || 'visit',
+    })
+  }
 
   revalidatePath(`/members/${memberId}`)
   revalidatePath('/dashboard')
