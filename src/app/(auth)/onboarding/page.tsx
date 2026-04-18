@@ -49,9 +49,24 @@ export default function OnboardingPage() {
   const [dob, setDob] = useState('')
   const [gender, setGender] = useState('')
   const [bloodGroup, setBloodGroup] = useState('')
+  const [heightCm, setHeightCm] = useState('')
+  const [weightKg, setWeightKg] = useState('')
 
   const formatMobile = (val: string) =>
     val.replace(/\D/g, '').slice(0, 10)
+
+  const bmi =
+    heightCm && weightKg
+      ? Number(weightKg) / Math.pow(Number(heightCm) / 100, 2)
+      : null
+
+  function bmiClassification(value: number): { label: string; className: string } {
+    if (value < 18.5) return { label: 'Underweight', className: 'bg-blue-100 text-blue-700 border border-blue-200' }
+    if (value < 23.0) return { label: 'Normal', className: 'bg-green-100 text-green-700 border border-green-200' }
+    if (value < 25.0) return { label: 'Overweight', className: 'bg-yellow-100 text-yellow-700 border border-yellow-200' }
+    if (value < 30.0) return { label: 'Obese Class I', className: 'bg-orange-100 text-orange-700 border border-orange-200' }
+    return { label: 'Obese Class II', className: 'bg-red-100 text-red-700 border border-red-200' }
+  }
 
   const handleStep1 = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -93,11 +108,20 @@ export default function OnboardingPage() {
 
     setLoading(true)
     try {
+      const heightVal = heightCm ? parseFloat(heightCm) : null
+      const weightVal = weightKg ? parseFloat(weightKg) : null
+      const bmiVal = bmi ? parseFloat(bmi.toFixed(1)) : null
+      const bmiDate = heightVal && weightVal ? new Date().toISOString().split('T')[0] : null
+
       await createPrimaryFamilyMember({
         full_name: fullName.trim(),
         date_of_birth: dob,
         gender: gender || undefined,
-        blood_group: bloodGroup || undefined
+        blood_group: bloodGroup || undefined,
+        height_cm: heightVal,
+        weight_kg: weightVal,
+        bmi: bmiVal,
+        bmi_date: bmiDate,
       })
       router.push('/dashboard')
     } catch (err: any) {
@@ -254,6 +278,51 @@ export default function OnboardingPage() {
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="heightCm">
+                    Height (cm){' '}
+                    <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+                  </Label>
+                  <Input
+                    id="heightCm"
+                    type="number"
+                    placeholder="e.g. 165"
+                    value={heightCm}
+                    onChange={e => setHeightCm(e.target.value)}
+                    min={50}
+                    max={250}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="weightKg">
+                    Weight (kg){' '}
+                    <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+                  </Label>
+                  <Input
+                    id="weightKg"
+                    type="number"
+                    placeholder="e.g. 68"
+                    value={weightKg}
+                    onChange={e => setWeightKg(e.target.value)}
+                    min={2}
+                    max={300}
+                  />
+                </div>
+              </div>
+
+              {bmi !== null && (
+                <div className="rounded-md bg-gray-50 border px-3 py-2.5 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground">BMI (auto-calculated)</p>
+                    <p className="text-sm font-semibold">{bmi.toFixed(1)}</p>
+                  </div>
+                  <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${bmiClassification(bmi).className}`}>
+                    {bmiClassification(bmi).label}
+                  </span>
+                </div>
+              )}
 
               {error && (
                 <div className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-md">

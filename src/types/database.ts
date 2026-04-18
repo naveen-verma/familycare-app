@@ -148,3 +148,24 @@ export interface MedicalEvent {
   updated_at: string
   deleted_at?: string
 }
+
+export interface ShareLink {
+  id: string
+  family_member_id: string
+  created_by: string
+  token: string
+  expires_at: string
+  is_active: boolean
+  recipient_mobile?: string | null
+  recipient_name?: string | null
+  doctor_name?: string | null
+  opened_at?: string | null
+  open_count: number
+  view_count: number
+  include_conditions: boolean
+  include_medications: boolean
+  include_documents: boolean
+  include_timeline: boolean
+  selected_condition_ids: string[]
+  created_at: string
+}

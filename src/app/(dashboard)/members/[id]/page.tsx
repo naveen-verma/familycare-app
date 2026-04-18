@@ -17,6 +17,7 @@ import {
   BuildingIcon,
   RulerIcon,
   ScaleIcon,
+  ShareIcon,
 } from 'lucide-react'
 
 function getInitials(name: string) {
@@ -97,13 +98,22 @@ export default async function MemberProfilePage({
 
   return (
     <div className="p-4 md:p-6 max-w-2xl mx-auto">
-      <Link
-        href="/members"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4"
-      >
-        <ChevronLeftIcon className="size-4" />
-        Family Members
-      </Link>
+      <div className="flex items-center justify-between mb-4">
+        <Link
+          href="/members"
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ChevronLeftIcon className="size-4" />
+          Family Members
+        </Link>
+        <Link
+          href={`/share?memberId=${id}`}
+          className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted transition-colors"
+        >
+          <ShareIcon className="size-3.5" />
+          Share with Doctor
+        </Link>
+      </div>
 
       {/* Profile card */}
       <Card className="mb-4">
