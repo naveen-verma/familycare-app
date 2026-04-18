@@ -23,6 +23,8 @@ export type VaultCondition = {
   status: string
   diagnosed_on: string | null
   is_pinned: boolean
+  category: string | null
+  is_critical: boolean
   documents: VaultDocument[]
 }
 
@@ -53,6 +55,7 @@ export type ViewReportCondition = {
   status: string
   diagnosed_on: string | null
   diagnosed_by: string | null
+  icd10_condition_id: string | null
 } | null
 
 // ---- Shared constants (safe for client components) ----

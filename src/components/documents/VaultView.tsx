@@ -20,6 +20,7 @@ import {
   Building2,
   Zap,
   Pin,
+  AlertTriangle,
 } from 'lucide-react'
 import type { VaultMember, VaultDocument, VaultCondition } from '@/lib/vault-types'
 import { DOC_TYPE_ORDER, DOC_TYPE_LABELS } from '@/lib/vault-types'
@@ -223,6 +224,12 @@ function ConditionGroup({
               >
                 {condition.status}
               </span>
+              {condition.is_critical && (
+                <span className="inline-flex items-center gap-0.5 text-xs text-red-600 font-medium">
+                  <AlertTriangle className="size-3" />
+                  Critical
+                </span>
+              )}
               {pinned && (
                 <span className="inline-flex h-5 items-center rounded-full bg-indigo-100 text-indigo-700 px-2 text-xs font-medium">
                   Pinned
@@ -230,6 +237,11 @@ function ConditionGroup({
               )}
             </div>
             <div className="flex items-center gap-3 mt-0.5">
+              {condition.category && (
+                <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+                  {condition.category}
+                </span>
+              )}
               {condition.diagnosed_on && (
                 <span className="text-xs text-muted-foreground">
                   Diagnosed {formatDate(condition.diagnosed_on)}

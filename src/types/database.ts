@@ -149,6 +149,18 @@ export interface MedicalEvent {
   deleted_at?: string
 }
 
+export interface InterestSignal {
+  id: string
+  family_member_id: string
+  medical_condition_id: string
+  icd10_condition_id: string | null
+  signal_type: string
+  notified: boolean
+  digest_included: boolean
+  signal_date: string
+  created_at: string
+}
+
 export interface ShareLink {
   id: string
   family_member_id: string
