@@ -53,7 +53,10 @@ export default function LoginPage() {
       } else {
         const { error } = await supabase.auth.signInWithOtp({
           email: value,
-          options: { shouldCreateUser: true }
+          options: {
+            shouldCreateUser: true,
+            emailRedirectTo: undefined,
+          }
         })
         if (error) { setError(error.message); return }
         sessionStorage.setItem('familycare_email', value)
