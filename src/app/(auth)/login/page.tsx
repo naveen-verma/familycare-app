@@ -113,7 +113,7 @@ export default function LoginPage() {
           </div>
 
           {/* Dev mode indicator */}
-          {!USE_PHONE_AUTH && (
+          {process.env.NODE_ENV === 'development' && (
             <div className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-md">
               Dev mode — using email OTP. Check Inbucket at{' '}
               <a href="http://127.0.0.1:54324" target="_blank" className="underline">
