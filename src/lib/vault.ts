@@ -29,7 +29,7 @@ export async function getVaultData(): Promise<VaultMember[]> {
     supabase
       .from('medical_conditions')
       .select(
-        'id, family_member_id, custom_name, status, diagnosed_on, is_pinned, icd10_conditions(name, common_name)'
+        'id, family_member_id, custom_name, status, diagnosed_on, is_pinned, icd10_conditions(name, common_name, category, is_critical)'
       )
       .in('family_member_id', memberIds)
       .is('deleted_at', null)
@@ -65,7 +65,7 @@ export async function getVaultData(): Promise<VaultMember[]> {
     const memberConds = condsByMember[member.id] || []
 
     const vaultConditions: VaultCondition[] = memberConds.map((cond) => {
-      const ic = cond.icd10_conditions as { name: string; common_name: string | null } | null
+      const ic = cond.icd10_conditions as { name: string; common_name: string | null; category: string | null; is_critical: boolean } | null
       const name = ic?.common_name ?? ic?.name ?? cond.custom_name ?? 'Unknown Condition'
       return {
         id: cond.id,
@@ -73,6 +73,8 @@ export async function getVaultData(): Promise<VaultMember[]> {
         status: cond.status,
         diagnosed_on: cond.diagnosed_on,
         is_pinned: cond.is_pinned ?? false,
+        category: ic?.category ?? null,
+        is_critical: ic?.is_critical ?? false,
         documents: memberDocs.filter((d) => d.medical_condition_id === cond.id),
       }
     })
@@ -104,7 +106,7 @@ export async function getViewReportData(memberId: string, conditionId: string) {
       ? Promise.resolve({ data: null })
       : supabase
           .from('medical_conditions')
-          .select('id, custom_name, status, diagnosed_on, diagnosed_by, icd10_conditions(name, common_name)')
+          .select('id, custom_name, status, diagnosed_on, diagnosed_by, icd10_condition_id, icd10_conditions(name, common_name)')
           .eq('id', conditionId)
           .is('deleted_at', null)
           .single(),
@@ -145,6 +147,7 @@ export async function getViewReportData(memberId: string, conditionId: string) {
       status: raw.status,
       diagnosed_on: raw.diagnosed_on,
       diagnosed_by: raw.diagnosed_by ?? null,
+      icd10_condition_id: raw.icd10_condition_id ?? null,
     }
   }
 

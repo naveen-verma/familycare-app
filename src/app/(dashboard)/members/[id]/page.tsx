@@ -6,6 +6,7 @@ import { AddConditionDialog } from '@/components/conditions/AddConditionDialog'
 import { EditConditionDialog } from '@/components/conditions/EditConditionDialog'
 import { ConditionTag } from '@/components/conditions/ConditionTag'
 import { EditMemberHealthDialog } from '@/components/members/EditMemberHealthDialog'
+import { SecondOpinionButton } from '@/components/conditions/SecondOpinionButton'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -18,6 +19,7 @@ import {
   RulerIcon,
   ScaleIcon,
   ShareIcon,
+  AlertTriangleIcon,
 } from 'lucide-react'
 
 function getInitials(name: string) {
@@ -260,7 +262,18 @@ export default async function MemberProfilePage({
                               status={condition.status}
                               name={condition.status}
                             />
+                            {condition.icd10_conditions?.is_critical && (
+                              <span className="inline-flex items-center gap-0.5 text-xs text-red-600 font-medium">
+                                <AlertTriangleIcon className="size-3" />
+                                Critical Condition
+                              </span>
+                            )}
                           </div>
+                          {condition.icd10_conditions?.category && (
+                            <span className="inline-flex mt-1 items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+                              {condition.icd10_conditions.category}
+                            </span>
+                          )}
                           {condition.icd10_conditions && (
                             <div className="text-xs text-muted-foreground mt-0.5">
                               {condition.icd10_conditions.icd10_code} ·{' '}
@@ -359,6 +372,19 @@ export default async function MemberProfilePage({
                           })}
                         </div>
                       )}
+
+                      <SecondOpinionButton
+                        memberId={member.id}
+                        conditionId={condition.id}
+                        conditionName={
+                          condition.icd10_conditions?.common_name ??
+                          condition.icd10_conditions?.name ??
+                          condition.custom_name ??
+                          'this condition'
+                        }
+                        icd10ConditionId={condition.icd10_condition_id ?? null}
+                        secondOpinionRequested={condition.second_opinion_requested}
+                      />
                     </CardContent>
                   </Card>
                 ))}
@@ -373,14 +399,27 @@ export default async function MemberProfilePage({
                 {resolvedConditions.map((condition) => (
                   <Card key={condition.id} size="sm">
                     <CardContent className="py-3 opacity-60">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-sm truncate">
-                            {condition.icd10_conditions?.common_name ??
-                              condition.icd10_conditions?.name ??
-                              condition.custom_name}
-                          </span>
-                          <ConditionTag status="resolved" name="Resolved" />
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm truncate">
+                              {condition.icd10_conditions?.common_name ??
+                                condition.icd10_conditions?.name ??
+                                condition.custom_name}
+                            </span>
+                            <ConditionTag status="resolved" name="Resolved" />
+                            {condition.icd10_conditions?.is_critical && (
+                              <span className="inline-flex items-center gap-0.5 text-xs text-red-600 font-medium">
+                                <AlertTriangleIcon className="size-3" />
+                                Critical
+                              </span>
+                            )}
+                          </div>
+                          {condition.icd10_conditions?.category && (
+                            <span className="inline-flex mt-0.5 items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+                              {condition.icd10_conditions.category}
+                            </span>
+                          )}
                         </div>
                         <EditConditionDialog
                           condition={condition}

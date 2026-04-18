@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { getViewReportData } from '@/lib/vault'
 import { Button } from '@/components/ui/button'
 import { ViewReportClient } from '@/components/documents/ViewReportClient'
+import { SecondOpinionButton } from '@/components/conditions/SecondOpinionButton'
 import { ArrowLeft } from 'lucide-react'
 
 const statusStyles: Record<string, string> = {
@@ -51,7 +52,7 @@ export default async function ViewReportPage({
           {isGeneral ? 'General Documents' : condition?.name ?? 'Unknown Condition'}
         </h1>
         {!isGeneral && condition && (
-          <div className="mt-2 space-y-1">
+          <div className="mt-2 space-y-2">
             <div className="flex items-center gap-3 flex-wrap">
               <span
                 className={`inline-flex h-5 items-center rounded-full border px-2 text-xs font-medium capitalize ${statusStyles[condition.status] ?? statusStyles.monitoring}`}
@@ -67,6 +68,12 @@ export default async function ViewReportPage({
             {condition.diagnosed_by && (
               <p className="text-xs text-muted-foreground">{condition.diagnosed_by}</p>
             )}
+            <SecondOpinionButton
+              memberId={memberId}
+              conditionId={conditionId}
+              conditionName={condition.name}
+              icd10ConditionId={condition.icd10_condition_id}
+            />
           </div>
         )}
       </div>
