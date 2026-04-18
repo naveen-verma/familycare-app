@@ -29,6 +29,10 @@ export async function createPrimaryFamilyMember(data: {
   date_of_birth?: string
   gender?: string
   blood_group?: string
+  height_cm?: number | null
+  weight_kg?: number | null
+  bmi?: number | null
+  bmi_date?: string | null
 }) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -61,7 +65,11 @@ export async function createPrimaryFamilyMember(data: {
       gender: data.gender || null,
       blood_group: data.blood_group || null,
       relation: 'self',
-      is_primary: true
+      is_primary: true,
+      height_cm: data.height_cm ?? null,
+      weight_kg: data.weight_kg ?? null,
+      bmi: data.bmi ?? null,
+      bmi_date: data.bmi_date ?? null,
     })
 
   if (error) throw error
