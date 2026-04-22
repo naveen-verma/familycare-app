@@ -343,9 +343,41 @@ export default async function ShareViewPage({
             For complete medical history, please consult the patient directly.
           </p>
           <p className="text-xs text-muted-foreground">
+            By viewing this summary you agree that this information is shared for
+            medical consultation purposes only.
+          </p>
+          <p className="text-xs text-muted-foreground">
             Link expires: {formatExpiry(shareLink.expires_at)}
           </p>
-          <p className="text-xs text-gray-400 mt-3">Powered by FamilyCare</p>
+          <div className="flex items-center justify-center gap-3 mt-3">
+            <a
+              href="/terms"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-gray-400 hover:text-gray-600"
+            >
+              Terms
+            </a>
+            <span className="text-gray-300 text-xs">·</span>
+            <a
+              href="/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-gray-400 hover:text-gray-600"
+            >
+              Privacy
+            </a>
+            <span className="text-gray-300 text-xs">·</span>
+            <a
+              href="/disclaimer"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-gray-400 hover:text-gray-600"
+            >
+              Disclaimer
+            </a>
+          </div>
+          <p className="text-xs text-gray-400 mt-1">Powered by FamilyCare</p>
         </footer>
       </main>
     </div>
