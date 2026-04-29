@@ -6,32 +6,14 @@ import {
   Clock,
   AlertCircle,
   Pill,
-  FileText,
-  Plus,
-  Share2,
   Users,
   ChevronRight,
-  Activity,
-  MicroscopeIcon,
   UserPlus,
-  Upload,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-
-function getInitials(name: string) {
-  return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
-}
-
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
-  const days = Math.floor(hrs / 24)
-  return `${days}d ago`
-}
+import { DashboardClient } from './DashboardClient'
+import type { MemberSnapshot } from '@/components/dashboard/FamilyHealthSnapshot'
+import type { ActivityItem } from '@/components/dashboard/RecentActivityFeed'
 
 function fmtDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-IN', {
@@ -39,15 +21,6 @@ function fmtDate(dateStr: string): string {
     month: 'short',
     year: 'numeric',
   })
-}
-
-const avatarColors: Record<string, string> = {
-  self: 'bg-blue-100 text-blue-700',
-  spouse: 'bg-pink-100 text-pink-700',
-  child: 'bg-green-100 text-green-700',
-  parent: 'bg-purple-100 text-purple-700',
-  sibling: 'bg-orange-100 text-orange-700',
-  other: 'bg-gray-100 text-gray-700',
 }
 
 export default async function DashboardPage() {
@@ -266,14 +239,6 @@ export default async function DashboardPage() {
 
   // ── Activity feed ───────────────────────────────────────────────────────────
 
-  type ActivityItem = {
-    key: string
-    type: 'document' | 'condition'
-    description: string
-    memberName: string
-    createdAt: string
-  }
-
   const activityItems: ActivityItem[] = [
     ...(recentDocsRaw ?? []).slice(0, 5).map((d) => ({
       key: `doc-${d.id}`,
@@ -292,6 +257,20 @@ export default async function DashboardPage() {
   ]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 5)
+
+  // ── Member snapshots for DashboardClient ───────────────────────────────────
+
+  const memberSnapshots: MemberSnapshot[] = members.map((m) => ({
+    id: m.id,
+    full_name: m.full_name,
+    relation: m.relation,
+    dateOfBirth: m.date_of_birth,
+    conditionCount: m.medical_conditions.filter(
+      (c) => (c.status === 'active' || c.status === 'chronic') && !c.deleted_at
+    ).length,
+    medCount: medCountByMember[m.id] ?? 0,
+    hasDoc: !!lastDocByMember[m.id],
+  }))
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -428,148 +407,13 @@ export default async function DashboardPage() {
         </section>
       )}
 
-      {/* ── Section 3: Family Health Snapshot ── */}
-      <section>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Family Health Snapshot
-          </h2>
-          <Link
-            href="/members"
-            className="text-xs text-indigo-600 hover:underline flex items-center gap-1"
-          >
-            Manage <ChevronRight className="size-3" />
-          </Link>
-        </div>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-          {members.map((member) => {
-            const initials = getInitials(member.full_name)
-            const color = avatarColors[member.relation ?? 'other'] ?? avatarColors.other
-            const activeConditions = member.medical_conditions.filter(
-              (c) => c.status === 'active' || c.status === 'chronic'
-            ).length
-            const activeMeds = medCountByMember[member.id] ?? 0
-            const lastDoc = lastDocByMember[member.id]
-
-            return (
-              <div key={member.id} className="rounded-xl border bg-white p-3.5">
-                <div className="flex items-center gap-2.5 mb-3">
-                  <div
-                    className={`size-9 rounded-full flex items-center justify-center shrink-0 font-semibold text-xs ${color}`}
-                  >
-                    {initials}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{member.full_name}</p>
-                    <p className="text-xs text-muted-foreground capitalize">
-                      {member.relation === 'self' ? 'You' : (member.relation ?? '—')}
-                    </p>
-                  </div>
-                </div>
-                <div className="space-y-1 text-xs mb-3">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Conditions</span>
-                    <span className="font-medium">{activeConditions}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Medications</span>
-                    <span className="font-medium">{activeMeds}</span>
-                  </div>
-                  {lastDoc && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Last doc</span>
-                      <span className="font-medium">{fmtDate(lastDoc)}</span>
-                    </div>
-                  )}
-                </div>
-                <Link
-                  href={`/members/${member.id}`}
-                  className="block text-center text-xs font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg py-1.5 transition-colors"
-                >
-                  View →
-                </Link>
-              </div>
-            )
-          })}
-        </div>
-      </section>
-
-      {/* ── Section 4: Recent Activity ── */}
-      {activityItems.length > 0 && (
-        <section>
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-            Recent Activity
-          </h2>
-          <div className="rounded-xl border bg-white divide-y">
-            {activityItems.map((item) => {
-              const Icon = item.type === 'document' ? FileText : Activity
-              return (
-                <div key={item.key} className="flex items-center gap-3 px-4 py-3">
-                  <div className="size-8 rounded-full bg-muted flex items-center justify-center shrink-0">
-                    <Icon className="size-4 text-muted-foreground" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm leading-snug">{item.description}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {item.memberName} · {timeAgo(item.createdAt)}
-                    </p>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* ── Section 5: Second Opinion Requests (owner only) ── */}
-      {isOwner && pendingSignalsCount > 0 && (
-        <section>
-          <div className="flex items-center gap-3 rounded-xl border border-indigo-100 bg-indigo-50 p-4">
-            <MicroscopeIcon className="size-5 text-indigo-600 shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-indigo-900">
-                {pendingSignalsCount} condition
-                {pendingSignalsCount > 1 ? 's' : ''} pending specialist review
-              </p>
-            </div>
-            <Link
-              href="/members"
-              className="text-xs font-medium text-indigo-600 hover:underline flex items-center gap-1 shrink-0"
-            >
-              View <ChevronRight className="size-3" />
-            </Link>
-          </div>
-        </section>
-      )}
-
-      {/* ── Section 6: Quick Actions ── */}
-      <section className="pb-2">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-          Quick Actions
-        </h2>
-        <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 md:-mx-6 md:px-6">
-          {(
-            [
-              { label: 'Add Member', href: '/members/new', Icon: UserPlus },
-              { label: 'Add Condition', href: '/members', Icon: Plus },
-              { label: 'Upload Doc', href: '/documents', Icon: Upload },
-              { label: 'Add Medication', href: '/medications', Icon: Pill },
-              { label: 'Share Records', href: '/members', Icon: Share2 },
-            ] as const
-          ).map(({ label, href, Icon }) => (
-            <Link
-              key={label}
-              href={href}
-              className="flex-shrink-0 flex flex-col items-center gap-2 rounded-xl border bg-white p-3.5 hover:border-indigo-200 hover:bg-indigo-50 transition-colors min-w-[88px]"
-            >
-              <div className="size-9 rounded-full bg-indigo-100 flex items-center justify-center">
-                <Icon className="size-4 text-indigo-600" />
-              </div>
-              <span className="text-xs font-medium text-center leading-tight">{label}</span>
-            </Link>
-          ))}
-        </div>
-      </section>
+      {/* ── Sections 3–6: Family Snapshot, Activity, Second Opinion, Quick Actions ── */}
+      <DashboardClient
+        memberSnapshots={memberSnapshots}
+        activityItems={activityItems}
+        isOwner={isOwner}
+        pendingSignalsCount={pendingSignalsCount}
+      />
 
     </div>
   )

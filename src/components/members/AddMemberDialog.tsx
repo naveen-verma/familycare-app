@@ -65,8 +65,20 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>
 
-export function AddMemberDialog() {
-  const [open, setOpen] = useState(false)
+interface AddMemberDialogProps {
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  onSuccess?: () => void
+}
+
+export function AddMemberDialog({
+  open: externalOpen,
+  onOpenChange: externalOnOpenChange,
+  onSuccess,
+}: AddMemberDialogProps = {}) {
+  const isControlled = externalOpen !== undefined
+  const [internalOpen, setInternalOpen] = useState(false)
+  const open = isControlled ? (externalOpen as boolean) : internalOpen
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [heightVal, setHeightVal] = useState('')
@@ -91,6 +103,17 @@ export function AddMemberDialog() {
       ? calcBMI(heightNum, weightNum)
       : null
 
+  function handleOpenChange(v: boolean) {
+    if (!isControlled) setInternalOpen(v)
+    externalOnOpenChange?.(v)
+    if (!v) {
+      reset()
+      setHeightVal('')
+      setWeightVal('')
+      setError(null)
+    }
+  }
+
   async function onSubmit(data: FormData) {
     setLoading(true)
     setError(null)
@@ -112,11 +135,9 @@ export function AddMemberDialog() {
         bmi,
         bmi_date: bmiDate,
       })
-      reset()
-      setHeightVal('')
-      setWeightVal('')
-      setOpen(false)
+      handleOpenChange(false)
       router.refresh()
+      onSuccess?.()
     } catch {
       setError('Failed to add member. Please try again.')
     } finally {
@@ -124,24 +145,16 @@ export function AddMemberDialog() {
     }
   }
 
-  function handleOpenChange(v: boolean) {
-    setOpen(v)
-    if (!v) {
-      reset()
-      setHeightVal('')
-      setWeightVal('')
-      setError(null)
-    }
-  }
-
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button size="sm">
-          <PlusIcon />
-          Add Member
-        </Button>
-      </DialogTrigger>
+      {!isControlled && (
+        <DialogTrigger asChild>
+          <Button size="sm">
+            <PlusIcon />
+            Add Member
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add Family Member</DialogTitle>
