@@ -32,6 +32,7 @@ export type LogVisitInput = {
     dosage?: string
     frequency?: string
     startDate?: string
+    timeOfDay?: string[]
   }>
 }
 
@@ -127,6 +128,7 @@ export async function logVisitAction(input: LogVisitInput): Promise<LogVisitResu
       name: med.name.trim(),
       dosage: med.dosage?.trim() || null,
       frequency: med.frequency || null,
+      time_of_day: med.timeOfDay ?? [],
       start_date: med.startDate || null,
       prescribed_by: input.doctorName || null,
       is_active: true,
