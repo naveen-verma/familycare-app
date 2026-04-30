@@ -53,11 +53,14 @@ const DOCUMENT_TYPES: { value: DocumentType; label: string }[] = [
 ]
 
 const MEDICATION_FREQUENCIES = [
-  { value: 'once daily', label: 'Once Daily' },
-  { value: 'twice daily', label: 'Twice Daily' },
-  { value: 'three times daily', label: 'Three Times Daily' },
-  { value: 'as needed', label: 'As Needed' },
-  { value: 'other', label: 'Other' },
+  { value: 'Once Daily', label: 'Once Daily' },
+  { value: 'Twice Daily', label: 'Twice Daily' },
+  { value: 'Three Times Daily', label: 'Three Times Daily' },
+  { value: 'Four Times Daily', label: 'Four Times Daily' },
+  { value: 'Every Alternate Day', label: 'Every Alternate Day' },
+  { value: 'Weekly', label: 'Weekly' },
+  { value: 'As Needed', label: 'As Needed' },
+  { value: 'Other', label: 'Other' },
 ]
 
 const MAX_FILE_SIZE_MB = 10
@@ -89,6 +92,34 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+function defaultTimesForFrequency(freq: string): string[] {
+  switch (freq) {
+    case 'Once Daily':          return ['08:00']
+    case 'Twice Daily':         return ['08:00', '18:00']
+    case 'Three Times Daily':   return ['08:00', '13:00', '21:00']
+    case 'Four Times Daily':    return ['08:00', '13:00', '18:00', '21:00']
+    case 'Every Alternate Day': return ['08:00']
+    case 'Weekly':              return ['08:00']
+    case 'As Needed':           return []
+    case 'Other':               return ['08:00']
+    default:                    return []
+  }
+}
+
+function timePickerLabels(freq: string): string[] {
+  switch (freq) {
+    case 'Once Daily':          return ['Time']
+    case 'Twice Daily':         return ['Morning', 'Evening']
+    case 'Three Times Daily':   return ['Morning', 'Afternoon', 'Night']
+    case 'Four Times Daily':    return ['Morning', 'Afternoon', 'Evening', 'Night']
+    case 'Every Alternate Day': return ['Time']
+    case 'Weekly':              return ['Time']
+    case 'As Needed':           return []
+    case 'Other':               return ['Time']
+    default:                    return []
+  }
+}
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type Step = 1 | 2 | 3 | 4 | 5 | 'success'
@@ -100,6 +131,7 @@ interface MedEntry {
   dosage: string
   frequency: string
   startDate: string
+  time_of_day: string[]
 }
 
 interface ExistingCondition {
@@ -113,8 +145,9 @@ function newMedEntry(): MedEntry {
     id: `med-${++medEntryCounter}`,
     name: '',
     dosage: '',
-    frequency: 'once daily',
+    frequency: 'Once Daily',
     startDate: todayISO(),
+    time_of_day: ['08:00'],
   }
 }
 
@@ -293,9 +326,30 @@ export function LogVisitSheet({ open, onOpenChange, members, onSuccess }: LogVis
     setMedications((prev) => [...prev, newMedEntry()])
   }
 
-  function updateMedication(id: string, field: keyof MedEntry, value: string) {
+  function updateMedication(id: string, field: 'name' | 'dosage' | 'startDate', value: string) {
     setMedications((prev) =>
       prev.map((m) => (m.id === id ? { ...m, [field]: value } : m))
+    )
+  }
+
+  function updateMedicationFrequency(id: string, freq: string) {
+    setMedications((prev) =>
+      prev.map((m) =>
+        m.id === id
+          ? { ...m, frequency: freq, time_of_day: defaultTimesForFrequency(freq) }
+          : m
+      )
+    )
+  }
+
+  function updateMedicationTime(id: string, index: number, value: string) {
+    setMedications((prev) =>
+      prev.map((m) => {
+        if (m.id !== id) return m
+        const times = [...m.time_of_day]
+        times[index] = value
+        return { ...m, time_of_day: times }
+      })
     )
   }
 
@@ -390,6 +444,7 @@ export function LogVisitSheet({ open, onOpenChange, members, onSuccess }: LogVis
             dosage: m.dosage || undefined,
             frequency: m.frequency || undefined,
             startDate: m.startDate || undefined,
+            timeOfDay: m.time_of_day,
           })),
       })
 
@@ -867,7 +922,7 @@ export function LogVisitSheet({ open, onOpenChange, members, onSuccess }: LogVis
                         <Label>Frequency</Label>
                         <Select
                           value={med.frequency}
-                          onValueChange={(v) => updateMedication(med.id, 'frequency', v)}
+                          onValueChange={(v) => updateMedicationFrequency(med.id, v)}
                         >
                           <SelectTrigger className="w-full">
                             <SelectValue />
@@ -882,6 +937,25 @@ export function LogVisitSheet({ open, onOpenChange, members, onSuccess }: LogVis
                         </Select>
                       </div>
                     </div>
+                    {/* Time pickers — number driven by frequency */}
+                    {(() => {
+                      const labels = timePickerLabels(med.frequency)
+                      if (labels.length === 0) return null
+                      return (
+                        <div className={`grid gap-2 ${labels.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                          {labels.map((label, idx) => (
+                            <div key={idx} className="space-y-1.5">
+                              <Label>{label}</Label>
+                              <Input
+                                type="time"
+                                value={med.time_of_day[idx] ?? '08:00'}
+                                onChange={(e) => updateMedicationTime(med.id, idx, e.target.value)}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    })()}
                     <div className="space-y-1.5">
                       <Label>Start Date</Label>
                       <Input
