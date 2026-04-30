@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Switch } from '@/components/ui/switch'
 import {
   Select,
   SelectContent,
@@ -53,14 +54,14 @@ const DOCUMENT_TYPES: { value: DocumentType; label: string }[] = [
 ]
 
 const MEDICATION_FREQUENCIES = [
-  { value: 'Once Daily', label: 'Once Daily' },
-  { value: 'Twice Daily', label: 'Twice Daily' },
-  { value: 'Three Times Daily', label: 'Three Times Daily' },
-  { value: 'Four Times Daily', label: 'Four Times Daily' },
-  { value: 'Every Alternate Day', label: 'Every Alternate Day' },
-  { value: 'Weekly', label: 'Weekly' },
-  { value: 'As Needed', label: 'As Needed' },
-  { value: 'Other', label: 'Other' },
+  { value: 'once daily',          label: 'Once Daily' },
+  { value: 'twice daily',         label: 'Twice Daily' },
+  { value: 'three times daily',   label: 'Three Times Daily' },
+  { value: 'four times daily',    label: 'Four Times Daily' },
+  { value: 'every alternate day', label: 'Every Alternate Day' },
+  { value: 'weekly',              label: 'Weekly' },
+  { value: 'as needed',           label: 'As Needed' },
+  { value: 'other',               label: 'Other' },
 ]
 
 const MAX_FILE_SIZE_MB = 10
@@ -94,28 +95,28 @@ function formatFileSize(bytes: number): string {
 
 function defaultTimesForFrequency(freq: string): string[] {
   switch (freq) {
-    case 'Once Daily':          return ['08:00']
-    case 'Twice Daily':         return ['08:00', '18:00']
-    case 'Three Times Daily':   return ['08:00', '13:00', '21:00']
-    case 'Four Times Daily':    return ['08:00', '13:00', '18:00', '21:00']
-    case 'Every Alternate Day': return ['08:00']
-    case 'Weekly':              return ['08:00']
-    case 'As Needed':           return []
-    case 'Other':               return ['08:00']
+    case 'once daily':          return ['08:00']
+    case 'twice daily':         return ['08:00', '18:00']
+    case 'three times daily':   return ['08:00', '13:00', '21:00']
+    case 'four times daily':    return ['08:00', '13:00', '18:00', '21:00']
+    case 'every alternate day': return ['08:00']
+    case 'weekly':              return ['08:00']
+    case 'as needed':           return []
+    case 'other':               return ['08:00']
     default:                    return []
   }
 }
 
 function timePickerLabels(freq: string): string[] {
   switch (freq) {
-    case 'Once Daily':          return ['Time']
-    case 'Twice Daily':         return ['Morning', 'Evening']
-    case 'Three Times Daily':   return ['Morning', 'Afternoon', 'Night']
-    case 'Four Times Daily':    return ['Morning', 'Afternoon', 'Evening', 'Night']
-    case 'Every Alternate Day': return ['Time']
-    case 'Weekly':              return ['Time']
-    case 'As Needed':           return []
-    case 'Other':               return ['Time']
+    case 'once daily':          return ['Time']
+    case 'twice daily':         return ['Morning', 'Evening']
+    case 'three times daily':   return ['Morning', 'Afternoon', 'Night']
+    case 'four times daily':    return ['Morning', 'Afternoon', 'Evening', 'Night']
+    case 'every alternate day': return ['Time']
+    case 'weekly':              return ['Time']
+    case 'as needed':           return []
+    case 'other':               return ['Time']
     default:                    return []
   }
 }
@@ -131,7 +132,9 @@ interface MedEntry {
   dosage: string
   frequency: string
   startDate: string
+  endDate: string
   time_of_day: string[]
+  reminderEnabled: boolean
 }
 
 interface ExistingCondition {
@@ -145,9 +148,11 @@ function newMedEntry(): MedEntry {
     id: `med-${++medEntryCounter}`,
     name: '',
     dosage: '',
-    frequency: 'Once Daily',
+    frequency: 'once daily',
     startDate: todayISO(),
+    endDate: '',
     time_of_day: ['08:00'],
+    reminderEnabled: true,
   }
 }
 
@@ -326,9 +331,15 @@ export function LogVisitSheet({ open, onOpenChange, members, onSuccess }: LogVis
     setMedications((prev) => [...prev, newMedEntry()])
   }
 
-  function updateMedication(id: string, field: 'name' | 'dosage' | 'startDate', value: string) {
+  function updateMedication(id: string, field: 'name' | 'dosage' | 'startDate' | 'endDate', value: string) {
     setMedications((prev) =>
       prev.map((m) => (m.id === id ? { ...m, [field]: value } : m))
+    )
+  }
+
+  function updateMedicationReminder(id: string, checked: boolean) {
+    setMedications((prev) =>
+      prev.map((m) => (m.id === id ? { ...m, reminderEnabled: checked } : m))
     )
   }
 
@@ -444,7 +455,9 @@ export function LogVisitSheet({ open, onOpenChange, members, onSuccess }: LogVis
             dosage: m.dosage || undefined,
             frequency: m.frequency || undefined,
             startDate: m.startDate || undefined,
+            endDate: m.endDate || undefined,
             timeOfDay: m.time_of_day,
+            reminderEnabled: m.reminderEnabled,
           })),
       })
 
@@ -956,12 +969,36 @@ export function LogVisitSheet({ open, onOpenChange, members, onSuccess }: LogVis
                         </div>
                       )
                     })()}
-                    <div className="space-y-1.5">
-                      <Label>Start Date</Label>
-                      <Input
-                        type="date"
-                        value={med.startDate}
-                        onChange={(e) => updateMedication(med.id, 'startDate', e.target.value)}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1.5">
+                        <Label>Start Date</Label>
+                        <Input
+                          type="date"
+                          value={med.startDate}
+                          onChange={(e) => updateMedication(med.id, 'startDate', e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>End Date</Label>
+                        <p className="text-xs text-muted-foreground">Leave empty if ongoing</p>
+                        <Input
+                          type="date"
+                          value={med.endDate}
+                          min={med.startDate || undefined}
+                          onChange={(e) => updateMedication(med.id, 'endDate', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-start justify-between gap-3 pt-1">
+                      <div className="space-y-0.5">
+                        <Label className="text-sm">Send WhatsApp reminder at scheduled times</Label>
+                        <p className="text-xs text-muted-foreground">
+                          On by default — turn off from Medications page if not needed
+                        </p>
+                      </div>
+                      <Switch
+                        checked={med.reminderEnabled}
+                        onCheckedChange={(checked) => updateMedicationReminder(med.id, checked)}
                       />
                     </div>
                   </div>

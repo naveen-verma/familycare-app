@@ -21,7 +21,7 @@ export type LogVisitInput = {
   document?: {
     title: string
     fileUrl: string
-    fileType: string
+    fileType: string   // raw MIME type from browser e.g. "image/png"
     fileSizeKb: number
     documentType: DocumentType
     notes?: string
@@ -32,7 +32,9 @@ export type LogVisitInput = {
     dosage?: string
     frequency?: string
     startDate?: string
+    endDate?: string
     timeOfDay?: string[]
+    reminderEnabled?: boolean
   }>
 }
 
@@ -40,6 +42,18 @@ export type LogVisitResult = {
   conditionCreated: boolean
   documentSaved: boolean
   medicationCount: number
+}
+
+// Maps browser MIME type to the values accepted by documents_file_type_check:
+// CHECK (file_type = ANY (ARRAY['pdf','jpg','jpeg','png']))
+function toDbFileType(mimeType: string): string {
+  const map: Record<string, string> = {
+    'application/pdf': 'pdf',
+    'image/png':       'png',
+    'image/jpeg':      'jpeg',
+    'image/jpg':       'jpg',
+  }
+  return map[mimeType] ?? 'pdf'
 }
 
 export async function logVisitAction(input: LogVisitInput): Promise<LogVisitResult> {
@@ -59,6 +73,14 @@ export async function logVisitAction(input: LogVisitInput): Promise<LogVisitResu
 
   let medicalConditionId: string | null = null
   let conditionCreated = false
+
+  // Guard: condition_name_required CHECK constraint
+  if (input.conditionMode === 'new_icd10' && !input.icd10ConditionId) {
+    throw new Error('Please select a condition from the list')
+  }
+  if (input.conditionMode === 'custom' && !input.customConditionName?.trim()) {
+    throw new Error('Please enter a condition name')
+  }
 
   // 1 — Create a new condition if needed
   if (input.conditionMode === 'new_icd10' || input.conditionMode === 'custom') {
@@ -106,7 +128,7 @@ export async function logVisitAction(input: LogVisitInput): Promise<LogVisitResu
       document_type: input.document.documentType,
       title: input.document.title,
       file_url: input.document.fileUrl,
-      file_type: input.document.fileType,
+      file_type: toDbFileType(input.document.fileType),
       file_size_kb: input.document.fileSizeKb,
       doctor_name: input.doctorName,
       hospital_name: input.hospitalName || null,
@@ -130,9 +152,10 @@ export async function logVisitAction(input: LogVisitInput): Promise<LogVisitResu
       frequency: med.frequency || null,
       time_of_day: med.timeOfDay ?? [],
       start_date: med.startDate || null,
+      end_date: med.endDate || null,
       prescribed_by: input.doctorName || null,
       is_active: true,
-      reminder_enabled: false,
+      reminder_enabled: med.reminderEnabled ?? true,
     })
     if (medError) throw medError
     medicationCount++
