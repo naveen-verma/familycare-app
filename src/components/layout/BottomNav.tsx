@@ -3,14 +3,14 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { LayoutDashboard, Users, FileText, Pill, LogOutIcon } from 'lucide-react'
-import { LogoutButton } from '@/components/layout/LogoutButton'
+import { LayoutDashboard, Users, FileText, Pill, Clock } from 'lucide-react'
 
 const navItems = [
-  { href: '/dashboard', label: 'Home', icon: LayoutDashboard },
-  { href: '/members', label: 'Family', icon: Users },
-  { href: '/documents', label: 'Docs', icon: FileText },
-  { href: '/medications', label: 'Meds', icon: Pill },
+  { href: '/dashboard',   label: 'Home',     icon: LayoutDashboard },
+  { href: '/members',     label: 'Family',   icon: Users },
+  { href: '/documents',   label: 'Docs',     icon: FileText },
+  { href: '/medications', label: 'Meds',     icon: Pill },
+  { href: '/timeline',    label: 'Timeline', icon: Clock },
 ]
 
 export function BottomNav() {
@@ -26,7 +26,7 @@ export function BottomNav() {
             href={href}
             className={cn(
               'flex flex-1 flex-col items-center justify-center gap-0.5 text-xs font-medium transition-colors',
-              isActive ? 'text-primary' : 'text-muted-foreground'
+              isActive ? 'text-teal-600' : 'text-muted-foreground'
             )}
           >
             <Icon className="size-5" />
@@ -34,7 +34,6 @@ export function BottomNav() {
           </Link>
         )
       })}
-      <LogoutButton variant="mobile" />
     </nav>
   )
 }

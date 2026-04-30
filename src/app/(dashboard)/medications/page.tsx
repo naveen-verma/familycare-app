@@ -4,10 +4,15 @@ import { MedicationsView } from '@/components/medications/MedicationsView'
 
 export default async function MedicationsPage() {
   const members = await getFamilyMembers()
-  const firstMember = members[0] ?? null
-  const initialMedications = firstMember
-    ? await getMedicationsForMember(firstMember.id)
-    : []
+
+  const memberMeds = await Promise.all(
+    members.map(async (m) => ({
+      id: m.id,
+      full_name: m.full_name,
+      relation: m.relation ?? null,
+      medications: await getMedicationsForMember(m.id),
+    }))
+  )
 
   return (
     <div className="p-4 md:p-6 max-w-3xl mx-auto">
@@ -17,11 +22,7 @@ export default async function MedicationsPage() {
           Track current and past medications for your family
         </p>
       </div>
-      <MedicationsView
-        members={members.map((m) => ({ id: m.id, full_name: m.full_name }))}
-        initialMedications={initialMedications}
-        initialMemberId={firstMember?.id ?? ''}
-      />
+      <MedicationsView memberMeds={memberMeds} />
     </div>
   )
 }
