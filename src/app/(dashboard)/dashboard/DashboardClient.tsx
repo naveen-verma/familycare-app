@@ -7,6 +7,8 @@ import { FamilyHealthSnapshot, type MemberSnapshot } from '@/components/dashboar
 import { RecentActivityFeed, type ActivityItem } from '@/components/dashboard/RecentActivityFeed'
 import { QuickActionsBar } from '@/components/dashboard/QuickActionsBar'
 import { AddMemberDialog } from '@/components/members/AddMemberDialog'
+import { DoctorVisitFAB } from '@/components/dashboard/DoctorVisitFAB'
+import { useRouter } from 'next/navigation'
 
 interface DashboardClientProps {
   memberSnapshots: MemberSnapshot[]
@@ -22,6 +24,7 @@ export function DashboardClient({
   pendingSignalsCount,
 }: DashboardClientProps) {
   const [showAddMember, setShowAddMember] = useState(false)
+  const router = useRouter()
 
   const memberSummaries = memberSnapshots.map((m) => ({
     id: m.id,
@@ -57,6 +60,11 @@ export function DashboardClient({
         onAddMember={() => setShowAddMember(true)}
       />
       <AddMemberDialog open={showAddMember} onOpenChange={setShowAddMember} />
+      <DoctorVisitFAB
+        members={memberSummaries}
+        onSuccess={() => router.refresh()}
+        disabled={memberSummaries.length === 0}
+      />
     </>
   )
 }
