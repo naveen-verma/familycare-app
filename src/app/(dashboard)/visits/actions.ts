@@ -60,6 +60,14 @@ export async function logVisitAction(input: LogVisitInput): Promise<LogVisitResu
   let medicalConditionId: string | null = null
   let conditionCreated = false
 
+  // Guard: condition_name_required CHECK constraint
+  if (input.conditionMode === 'new_icd10' && !input.icd10ConditionId) {
+    throw new Error('Please select a condition from the list')
+  }
+  if (input.conditionMode === 'custom' && !input.customConditionName?.trim()) {
+    throw new Error('Please enter a condition name')
+  }
+
   // 1 — Create a new condition if needed
   if (input.conditionMode === 'new_icd10' || input.conditionMode === 'custom') {
     const { data: condition, error } = await supabase
