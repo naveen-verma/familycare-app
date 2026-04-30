@@ -221,7 +221,7 @@ export default async function DashboardPage() {
 
   // ── Process medications ─────────────────────────────────────────────────────
 
-  const todaysMeds = (medsRaw ?? []).filter((m) => r(m).reminder_enabled)
+  const todaysMeds = medsRaw ?? []
 
   const medCountByMember: Record<string, number> = {}
   for (const med of medsRaw ?? []) {
