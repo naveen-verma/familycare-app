@@ -119,7 +119,7 @@ export interface Medication {
 
 export interface ConditionConsultation {
   id: string
-  medical_condition_id: string
+  medical_condition_id: string | null
   consultation_type: ConsultationType
   doctor_name: string
   hospital_name?: string
