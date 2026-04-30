@@ -32,7 +32,9 @@ export type LogVisitInput = {
     dosage?: string
     frequency?: string
     startDate?: string
+    endDate?: string
     timeOfDay?: string[]
+    reminderEnabled?: boolean
   }>
 }
 
@@ -150,9 +152,10 @@ export async function logVisitAction(input: LogVisitInput): Promise<LogVisitResu
       frequency: med.frequency || null,
       time_of_day: med.timeOfDay ?? [],
       start_date: med.startDate || null,
+      end_date: med.endDate || null,
       prescribed_by: input.doctorName || null,
       is_active: true,
-      reminder_enabled: false,
+      reminder_enabled: med.reminderEnabled ?? true,
     })
     if (medError) throw medError
     medicationCount++

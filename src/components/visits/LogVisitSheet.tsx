@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Switch } from '@/components/ui/switch'
 import {
   Select,
   SelectContent,
@@ -131,7 +132,9 @@ interface MedEntry {
   dosage: string
   frequency: string
   startDate: string
+  endDate: string
   time_of_day: string[]
+  reminderEnabled: boolean
 }
 
 interface ExistingCondition {
@@ -147,7 +150,9 @@ function newMedEntry(): MedEntry {
     dosage: '',
     frequency: 'once daily',
     startDate: todayISO(),
+    endDate: '',
     time_of_day: ['08:00'],
+    reminderEnabled: true,
   }
 }
 
@@ -326,9 +331,15 @@ export function LogVisitSheet({ open, onOpenChange, members, onSuccess }: LogVis
     setMedications((prev) => [...prev, newMedEntry()])
   }
 
-  function updateMedication(id: string, field: 'name' | 'dosage' | 'startDate', value: string) {
+  function updateMedication(id: string, field: 'name' | 'dosage' | 'startDate' | 'endDate', value: string) {
     setMedications((prev) =>
       prev.map((m) => (m.id === id ? { ...m, [field]: value } : m))
+    )
+  }
+
+  function updateMedicationReminder(id: string, checked: boolean) {
+    setMedications((prev) =>
+      prev.map((m) => (m.id === id ? { ...m, reminderEnabled: checked } : m))
     )
   }
 
@@ -444,7 +455,9 @@ export function LogVisitSheet({ open, onOpenChange, members, onSuccess }: LogVis
             dosage: m.dosage || undefined,
             frequency: m.frequency || undefined,
             startDate: m.startDate || undefined,
+            endDate: m.endDate || undefined,
             timeOfDay: m.time_of_day,
+            reminderEnabled: m.reminderEnabled,
           })),
       })
 
@@ -956,12 +969,36 @@ export function LogVisitSheet({ open, onOpenChange, members, onSuccess }: LogVis
                         </div>
                       )
                     })()}
-                    <div className="space-y-1.5">
-                      <Label>Start Date</Label>
-                      <Input
-                        type="date"
-                        value={med.startDate}
-                        onChange={(e) => updateMedication(med.id, 'startDate', e.target.value)}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1.5">
+                        <Label>Start Date</Label>
+                        <Input
+                          type="date"
+                          value={med.startDate}
+                          onChange={(e) => updateMedication(med.id, 'startDate', e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>End Date</Label>
+                        <p className="text-xs text-muted-foreground">Leave empty if ongoing</p>
+                        <Input
+                          type="date"
+                          value={med.endDate}
+                          min={med.startDate || undefined}
+                          onChange={(e) => updateMedication(med.id, 'endDate', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-start justify-between gap-3 pt-1">
+                      <div className="space-y-0.5">
+                        <Label className="text-sm">Send WhatsApp reminder at scheduled times</Label>
+                        <p className="text-xs text-muted-foreground">
+                          On by default — turn off from Medications page if not needed
+                        </p>
+                      </div>
+                      <Switch
+                        checked={med.reminderEnabled}
+                        onCheckedChange={(checked) => updateMedicationReminder(med.id, checked)}
                       />
                     </div>
                   </div>
