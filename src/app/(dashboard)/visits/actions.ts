@@ -21,7 +21,7 @@ export type LogVisitInput = {
   document?: {
     title: string
     fileUrl: string
-    fileType: string
+    fileType: string   // raw MIME type from browser e.g. "image/png"
     fileSizeKb: number
     documentType: DocumentType
     notes?: string
@@ -40,6 +40,18 @@ export type LogVisitResult = {
   conditionCreated: boolean
   documentSaved: boolean
   medicationCount: number
+}
+
+// Maps browser MIME type to the values accepted by documents_file_type_check:
+// CHECK (file_type = ANY (ARRAY['pdf','jpg','jpeg','png']))
+function toDbFileType(mimeType: string): string {
+  const map: Record<string, string> = {
+    'application/pdf': 'pdf',
+    'image/png':       'png',
+    'image/jpeg':      'jpeg',
+    'image/jpg':       'jpg',
+  }
+  return map[mimeType] ?? 'pdf'
 }
 
 export async function logVisitAction(input: LogVisitInput): Promise<LogVisitResult> {
@@ -114,7 +126,7 @@ export async function logVisitAction(input: LogVisitInput): Promise<LogVisitResu
       document_type: input.document.documentType,
       title: input.document.title,
       file_url: input.document.fileUrl,
-      file_type: input.document.fileType,
+      file_type: toDbFileType(input.document.fileType),
       file_size_kb: input.document.fileSizeKb,
       doctor_name: input.doctorName,
       hospital_name: input.hospitalName || null,
