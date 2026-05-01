@@ -2,23 +2,37 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/client'
 import { toggleReminderAction } from '@/app/(dashboard)/medications/actions'
 import { Switch } from '@/components/ui/switch'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Pill, Clock, Calendar, User, Bell, BellOff, Edit, Plus } from 'lucide-react'
 import type { MedicationWithCondition } from '@/lib/medication-utils'
 import { getConditionName, isMedicationActive, frequencyLabel } from '@/lib/medication-utils'
 
-type Member = { id: string; full_name: string }
+type MemberWithMeds = {
+  id: string
+  full_name: string
+  relation: string | null
+  medications: MedicationWithCondition[]
+}
+
+const avatarColors: Record<string, string> = {
+  self: 'bg-blue-100 text-blue-700',
+  spouse: 'bg-pink-100 text-pink-700',
+  child: 'bg-green-100 text-green-700',
+  parent: 'bg-purple-100 text-purple-700',
+  sibling: 'bg-orange-100 text-orange-700',
+  other: 'bg-gray-100 text-gray-700',
+}
+
+function getInitials(name: string) {
+  return name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2)
+}
 
 function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return ''
@@ -51,110 +65,92 @@ function MedicationCard({ medication }: { medication: MedicationWithCondition })
   }
 
   return (
-    <div className="rounded-xl border bg-card p-4 space-y-3">
-      {/* Header */}
-      <div className="flex items-start gap-3">
-        <div className="mt-0.5 size-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-          <Pill className="size-4 text-primary" />
+    <div className="rounded-xl border bg-card p-3 space-y-2">
+      {/* Header — always visible */}
+      <div className="flex items-center gap-2.5 min-h-[44px]">
+        <div className="size-9 rounded-lg bg-teal-50 flex items-center justify-center shrink-0">
+          <Pill className="size-4 text-teal-600" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 flex-wrap">
             <Link
               href={`/medications/${medication.id}`}
-              className="font-semibold text-base hover:text-primary transition-colors"
+              className="font-semibold text-sm hover:text-primary transition-colors"
             >
               {medication.name}
             </Link>
-            <Badge
-              className={
+            <span
+              className={`inline-flex h-4 items-center rounded-full px-1.5 text-[10px] font-medium ${
                 active
-                  ? 'bg-green-100 text-green-700 hover:bg-green-100 border border-green-200'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-100 border border-gray-200'
-              }
+                  ? 'bg-green-100 text-green-700'
+                  : 'bg-gray-100 text-gray-600'
+              }`}
             >
               {active ? 'Active' : 'Inactive'}
-            </Badge>
+            </span>
           </div>
-          {medication.dosage && (
-            <p className="text-sm text-muted-foreground mt-0.5">{medication.dosage}</p>
-          )}
+          {/* Dosage · frequency on one compact line */}
+          <p className="text-xs text-muted-foreground mt-0.5 truncate">
+            {[medication.dosage, medication.frequency ? frequencyLabel(medication.frequency) : null]
+              .filter(Boolean)
+              .join(' · ') || <span className="italic">No dosage set</span>}
+          </p>
         </div>
-        <Button asChild variant="ghost" size="sm" className="shrink-0 size-8 p-0">
-          <Link href={`/medications/${medication.id}/edit`} aria-label="Edit medication">
-            <Edit className="size-3.5" />
-          </Link>
-        </Button>
+        <div className="flex items-center gap-1 shrink-0">
+          {/* Reminder dot */}
+          <span
+            className={`size-2 rounded-full ${reminderOn ? 'bg-green-500' : 'bg-gray-300'}`}
+            title={reminderOn ? 'Reminders on' : 'Reminders off'}
+          />
+          <Button asChild variant="ghost" size="sm" className="size-8 p-0">
+            <Link href={`/medications/${medication.id}/edit`} aria-label="Edit medication">
+              <Edit className="size-3.5" />
+            </Link>
+          </Button>
+        </div>
       </div>
 
-      {/* Frequency + Condition badges */}
-      {(medication.frequency || conditionName) && (
-        <div className="flex flex-wrap gap-1.5">
-          {medication.frequency && (
-            <Badge variant="outline" className="text-xs font-normal">
-              {frequencyLabel(medication.frequency)}
-            </Badge>
+      {/* Secondary info — hidden on mobile, shown on sm: */}
+      <div className="hidden sm:block space-y-1.5">
+        {(medication.frequency || conditionName) && (
+          <div className="flex flex-wrap gap-1.5">
+            {conditionName && (
+              <span className="flex items-center text-xs text-indigo-600 bg-indigo-50 rounded-full px-2 py-0.5">
+                {conditionName}
+              </span>
+            )}
+          </div>
+        )}
+        {medication.time_of_day && medication.time_of_day.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {medication.time_of_day.map((t, i) => (
+              <span key={i} className="flex items-center gap-1 text-xs rounded-full bg-muted px-2 py-0.5">
+                <Clock className="size-3 text-muted-foreground" />
+                {t}
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+          {medication.prescribed_by && (
+            <span className="flex items-center gap-1"><User className="size-3" />{medication.prescribed_by}</span>
           )}
-          {conditionName && (
-            <span className="flex items-center text-xs text-indigo-600 bg-indigo-50 rounded-full px-2 py-0.5">
-              {conditionName}
-            </span>
+          {medication.start_date && (
+            <span className="flex items-center gap-1"><Calendar className="size-3" />Started {formatDate(medication.start_date)}</span>
+          )}
+          {medication.end_date ? (
+            <span className="flex items-center gap-1"><Calendar className="size-3" />Until {formatDate(medication.end_date)}</span>
+          ) : (
+            <span className="text-green-600 font-medium">Ongoing</span>
           )}
         </div>
-      )}
-
-      {/* Time of day pills */}
-      {medication.time_of_day && medication.time_of_day.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {medication.time_of_day.map((t, i) => (
-            <span
-              key={i}
-              className="flex items-center gap-1 text-xs rounded-full bg-muted px-2 py-0.5"
-            >
-              <Clock className="size-3 text-muted-foreground" />
-              {t}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {/* Meta row */}
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-        {medication.prescribed_by && (
-          <span className="flex items-center gap-1">
-            <User className="size-3" />
-            {medication.prescribed_by}
-          </span>
-        )}
-        {medication.start_date && (
-          <span className="flex items-center gap-1">
-            <Calendar className="size-3" />
-            Started {formatDate(medication.start_date)}
-          </span>
-        )}
-        {medication.end_date ? (
-          <span className="flex items-center gap-1">
-            <Calendar className="size-3" />
-            Until {formatDate(medication.end_date)}
-          </span>
-        ) : (
-          <span className="text-green-600 font-medium">Ongoing</span>
-        )}
       </div>
 
       {/* Reminder toggle */}
       <div className="flex items-center gap-2 pt-1 border-t">
-        <Switch
-          checked={reminderOn}
-          onCheckedChange={handleReminderToggle}
-          disabled={toggling}
-          aria-label="Toggle reminder"
-        />
-        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          {reminderOn ? (
-            <Bell className="size-3" />
-          ) : (
-            <BellOff className="size-3" />
-          )}
+        <Switch checked={reminderOn} onCheckedChange={handleReminderToggle} disabled={toggling} aria-label="Toggle reminder" />
+        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+          {reminderOn ? <Bell className="size-3" /> : <BellOff className="size-3" />}
           {reminderOn ? 'Reminders on' : 'Reminders off'}
         </span>
       </div>
@@ -162,60 +158,50 @@ function MedicationCard({ medication }: { medication: MedicationWithCondition })
   )
 }
 
-export function MedicationsView({
-  members,
-  initialMedications,
-  initialMemberId,
+function MemberMedSection({
+  member,
+  statusFilter,
 }: {
-  members: Member[]
-  initialMedications: MedicationWithCondition[]
-  initialMemberId: string
+  member: MemberWithMeds
+  statusFilter: 'active' | 'all'
 }) {
-  const [selectedMemberId, setSelectedMemberId] = useState(initialMemberId)
-  const [statusFilter, setStatusFilter] = useState<'active' | 'all'>('active')
-  const [medications, setMedications] = useState<MedicationWithCondition[]>(initialMedications)
-  const [loading, setLoading] = useState(false)
+  const initials = getInitials(member.full_name)
+  const avatarColor = avatarColors[member.relation ?? 'other'] ?? avatarColors.other
 
-  async function fetchMedications(memberId: string) {
-    if (!memberId) return
-    setLoading(true)
-    try {
-      const supabase = createClient()
-      const { data } = await supabase
-        .from('medications')
-        .select(`
-          id, name, dosage, frequency, time_of_day,
-          start_date, end_date, prescribed_by,
-          is_active, reminder_enabled, notes,
-          family_member_id, medical_condition_id,
-          created_at, updated_at, deleted_at,
-          medical_conditions (
-            id, custom_name, status, diagnosed_on,
-            icd10_conditions (common_name)
-          )
-        `)
-        .eq('family_member_id', memberId)
-        .is('deleted_at', null)
-        .order('is_active', { ascending: false })
-        .order('name', { ascending: true })
-
-      setMedications((data ?? []) as unknown as MedicationWithCondition[])
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  function handleMemberChange(memberId: string) {
-    setSelectedMemberId(memberId)
-    fetchMedications(memberId)
-  }
-
-  const filteredMedications =
+  const medications =
     statusFilter === 'active'
-      ? medications.filter((m) => isMedicationActive(m))
-      : medications
+      ? member.medications.filter((m) => isMedicationActive(m))
+      : member.medications
 
-  if (members.length === 0) {
+  if (medications.length === 0) return null
+
+  return (
+    <div>
+      {/* Member section header */}
+      <div className="flex items-center gap-2 mb-3">
+        <div
+          className={`size-7 rounded-full flex items-center justify-center shrink-0 text-xs font-semibold ${avatarColor}`}
+        >
+          {initials}
+        </div>
+        <span className="text-sm font-semibold">{member.full_name}</span>
+        <span className="text-xs text-muted-foreground">
+          {medications.length} {medications.length === 1 ? 'medication' : 'medications'}
+        </span>
+      </div>
+      <div className="space-y-3 pl-0.5">
+        {medications.map((med) => (
+          <MedicationCard key={med.id} medication={med} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+export function MedicationsView({ memberMeds }: { memberMeds: MemberWithMeds[] }) {
+  const [statusFilter, setStatusFilter] = useState<'active' | 'all'>('active')
+
+  if (memberMeds.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <Pill className="size-12 text-muted-foreground mb-3" />
@@ -230,70 +216,64 @@ export function MedicationsView({
     )
   }
 
+  const hasAnyMedications = memberMeds.some((m) => m.medications.length > 0)
+
   return (
     <div className="relative">
-      {/* Filters */}
-      <div className="flex items-center gap-3 mb-5 flex-wrap">
-        <Select value={selectedMemberId} onValueChange={handleMemberChange}>
-          <SelectTrigger className="w-44">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {members.map((m) => (
-              <SelectItem key={m.id} value={m.id}>
-                {m.full_name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <div className="flex rounded-lg border overflow-hidden">
+      {/* Status filter chips */}
+      <div className="flex gap-2 mb-5">
+        {(['active', 'all'] as const).map((filter) => (
           <button
+            key={filter}
             type="button"
-            onClick={() => setStatusFilter('active')}
-            className={`px-3 py-1.5 text-sm font-medium transition-colors ${
-              statusFilter === 'active'
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-background text-muted-foreground hover:bg-muted'
+            onClick={() => setStatusFilter(filter)}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors min-h-[32px] ${
+              statusFilter === filter
+                ? 'bg-teal-600 text-white'
+                : 'bg-muted text-muted-foreground hover:bg-muted/80'
             }`}
           >
-            Active
+            {filter === 'active' ? 'Active' : 'All'}
           </button>
-          <button
-            type="button"
-            onClick={() => setStatusFilter('all')}
-            className={`px-3 py-1.5 text-sm font-medium border-l transition-colors ${
-              statusFilter === 'all'
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-background text-muted-foreground hover:bg-muted'
-            }`}
-          >
-            All
-          </button>
-        </div>
+        ))}
       </div>
 
-      {/* Medication list */}
-      {loading ? (
-        <div className="space-y-3">
-          {[1, 2].map((i) => (
-            <div key={i} className="rounded-xl border bg-card p-4 animate-pulse h-36" />
-          ))}
-        </div>
-      ) : filteredMedications.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <Pill className="size-10 text-muted-foreground mb-3" />
-          <p className="font-medium text-sm text-muted-foreground">
-            {statusFilter === 'active'
-              ? 'No active medications'
-              : 'No medications recorded yet'}
+      {/* Member sections */}
+      {!hasAnyMedications ? (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="size-10 rounded-full bg-muted flex items-center justify-center mb-3">
+            <Pill className="size-5 text-muted-foreground" />
+          </div>
+          <p className="font-medium text-sm">No medications yet</p>
+          <p className="text-xs text-muted-foreground mt-1 mb-4">
+            Add the first medication for a family member
           </p>
+          <Link
+            href="/medications/add"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 transition-colors h-11"
+          >
+            <Plus className="size-4" />
+            Add Medication
+          </Link>
         </div>
       ) : (
-        <div className="space-y-3">
-          {filteredMedications.map((med) => (
-            <MedicationCard key={med.id} medication={med} />
+        <div className="space-y-6">
+          {memberMeds.map((m) => (
+            <MemberMedSection key={m.id} member={m} statusFilter={statusFilter} />
           ))}
+          {/* Empty state when filter hides everything */}
+          {statusFilter === 'active' &&
+            memberMeds.every((m) => m.medications.filter(isMedicationActive).length === 0) && (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="size-10 rounded-full bg-muted flex items-center justify-center mb-3">
+                  <Pill className="size-5 text-muted-foreground" />
+                </div>
+                <p className="font-medium text-sm">No active medications</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  All medications are inactive or ended
+                </p>
+              </div>
+            )}
         </div>
       )}
 
