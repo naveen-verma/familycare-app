@@ -71,6 +71,41 @@ const statusStyles: Record<string, string> = {
   resolved: 'bg-green-100 text-green-700 border-green-200',
 }
 
+// ---- Flat document card (mobile-only — 2-level view) ----
+
+function FlatDocumentCard({
+  doc,
+  memberId,
+  conditionId,
+  conditionName,
+}: {
+  doc: VaultDocument
+  memberId: string
+  conditionId: string
+  conditionName: string | null
+}) {
+  return (
+    <Link
+      href={`/documents/${memberId}/${conditionId}`}
+      className="flex items-center gap-3 rounded-xl border p-3 min-h-[72px] hover:bg-muted/40 transition-colors"
+    >
+      <FileTypeIcon fileType={doc.file_type} />
+      <div className="flex-1 min-w-0">
+        <p className="font-medium text-sm truncate">{doc.title}</p>
+        {conditionName && (
+          <p className="text-xs text-muted-foreground truncate">{conditionName}</p>
+        )}
+        <span className="inline-flex h-4 items-center rounded-full bg-muted px-1.5 text-[10px] font-medium text-muted-foreground mt-0.5">
+          {DOC_TYPE_LABELS[doc.document_type as DocumentType] ?? doc.document_type}
+        </span>
+      </div>
+      {doc.document_date && (
+        <p className="shrink-0 text-xs text-muted-foreground">{formatDate(doc.document_date)}</p>
+      )}
+    </Link>
+  )
+}
+
 // ---- Filter chips config ----
 
 const filterChips: { label: string; value: DocumentType | 'all' }[] = [
@@ -408,6 +443,18 @@ function MemberSection({
   const hasContent =
     member.conditions.length > 0 || member.general_documents.length > 0
 
+  // Flat doc list for mobile (2-level: member → doc, no condition accordion)
+  const flatDocs: Array<{ doc: VaultDocument; conditionId: string; conditionName: string | null }> = [
+    ...member.conditions.flatMap((c) =>
+      c.documents.map((d) => ({ doc: d, conditionId: c.id, conditionName: c.name }))
+    ),
+    ...member.general_documents.map((d) => ({ doc: d, conditionId: 'general', conditionName: null })),
+  ]
+  const visibleFlatDocs =
+    docTypeFilter === 'all'
+      ? flatDocs
+      : flatDocs.filter(({ doc }) => doc.document_type === docTypeFilter)
+
   return (
     <div className="rounded-xl border overflow-hidden">
       {/* Member header */}
@@ -446,40 +493,65 @@ function MemberSection({
 
       {/* Expanded content */}
       {open && (
-        <div className="border-t px-4 py-4 space-y-3 bg-muted/20">
+        <div className="border-t bg-muted/20">
           {!hasContent ? (
-            <div className="text-center py-8">
+            <div className="px-4 py-8 text-center">
               <FolderOpen className="size-8 text-muted-foreground mx-auto mb-2" />
               <p className="text-sm text-muted-foreground">No medical records yet</p>
             </div>
           ) : (
             <>
-              {visibleConditions.map((condition) => (
-                <ConditionGroup
-                  key={condition.id}
-                  condition={condition}
-                  memberId={member.id}
-                  onPinToggle={onPinToggle}
-                  docTypeFilter={docTypeFilter}
-                />
-              ))}
-              {visibleGeneralDocs.length > 0 && (
-                <GeneralDocsGroup
-                  docs={visibleGeneralDocs}
-                  memberId={member.id}
-                  docTypeFilter={docTypeFilter}
-                />
-              )}
-              {docTypeFilter !== 'all' &&
-                visibleConditions.length === 0 &&
-                visibleGeneralDocs.length === 0 && (
-                  <div className="text-center py-8">
+              {/* Mobile: flat 2-level document cards (no condition accordion) */}
+              <div className="px-4 py-3 space-y-2 sm:hidden">
+                {visibleFlatDocs.length === 0 ? (
+                  <div className="text-center py-6">
                     <FileText className="size-8 text-muted-foreground mx-auto mb-2" />
                     <p className="text-sm text-muted-foreground">
                       No {DOC_TYPE_LABELS[docTypeFilter as DocumentType]?.toLowerCase() ?? 'documents'} for this member
                     </p>
                   </div>
+                ) : (
+                  visibleFlatDocs.map(({ doc, conditionId, conditionName }) => (
+                    <FlatDocumentCard
+                      key={doc.id}
+                      doc={doc}
+                      memberId={member.id}
+                      conditionId={conditionId}
+                      conditionName={conditionName}
+                    />
+                  ))
                 )}
+              </div>
+
+              {/* Desktop: nested accordion (condition → doc type → doc) */}
+              <div className="hidden sm:block px-4 py-4 space-y-3">
+                {visibleConditions.map((condition) => (
+                  <ConditionGroup
+                    key={condition.id}
+                    condition={condition}
+                    memberId={member.id}
+                    onPinToggle={onPinToggle}
+                    docTypeFilter={docTypeFilter}
+                  />
+                ))}
+                {visibleGeneralDocs.length > 0 && (
+                  <GeneralDocsGroup
+                    docs={visibleGeneralDocs}
+                    memberId={member.id}
+                    docTypeFilter={docTypeFilter}
+                  />
+                )}
+                {docTypeFilter !== 'all' &&
+                  visibleConditions.length === 0 &&
+                  visibleGeneralDocs.length === 0 && (
+                    <div className="text-center py-8">
+                      <FileText className="size-8 text-muted-foreground mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground">
+                        No {DOC_TYPE_LABELS[docTypeFilter as DocumentType]?.toLowerCase() ?? 'documents'} for this member
+                      </p>
+                    </div>
+                  )}
+              </div>
             </>
           )}
         </div>

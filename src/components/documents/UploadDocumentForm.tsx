@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/select'
 import { saveDocumentAction } from '@/app/(dashboard)/documents/actions'
 import type { DocumentType } from '@/types/database'
-import { Upload, X, FileText, FileImage, AlertCircle, Sparkles } from 'lucide-react'
+import { Upload, X, FileText, FileImage, AlertCircle, Sparkles, ChevronDown } from 'lucide-react'
 
 const MIME_TO_EXT: Record<string, string> = {
   'application/pdf': 'pdf',
@@ -88,6 +88,7 @@ export function UploadDocumentForm({
   const [error, setError] = useState<string | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [visitDetailsOpen, setVisitDetailsOpen] = useState(false)
 
   async function loadConditions(memberId: string) {
     setLoadingConditions(true)
@@ -195,56 +196,58 @@ export function UploadDocumentForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      {/* Family member */}
-      <div className="space-y-1.5">
-        <Label>Family Member *</Label>
-        <Select value={selectedMemberId} onValueChange={handleMemberChange}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select member" />
-          </SelectTrigger>
-          <SelectContent>
-            {members.map((m) => (
-              <SelectItem key={m.id} value={m.id}>
-                {m.full_name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      {/* ── Section 1: Who & What ── */}
+      <div className="space-y-4">
+        <div className="space-y-1.5">
+          <Label>Family Member *</Label>
+          <Select value={selectedMemberId} onValueChange={handleMemberChange}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select member" />
+            </SelectTrigger>
+            <SelectContent>
+              {members.map((m) => (
+                <SelectItem key={m.id} value={m.id}>
+                  {m.full_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label>Document Type *</Label>
+          <Select value={docType} onValueChange={(v) => setDocType(v as DocumentType)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {DOC_TYPES.map((t) => (
+                <SelectItem key={t.value} value={t.value}>
+                  {t.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="title">Document Title *</Label>
+          <Input
+            id="title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="e.g. Blood Test Report — Jan 2025"
+            maxLength={100}
+          />
+          {title.length > 80 && (
+            <p className="text-xs text-muted-foreground">{title.length}/100</p>
+          )}
+        </div>
       </div>
 
-      {/* Document type */}
-      <div className="space-y-1.5">
-        <Label>Document Type *</Label>
-        <Select value={docType} onValueChange={(v) => setDocType(v as DocumentType)}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {DOC_TYPES.map((t) => (
-              <SelectItem key={t.value} value={t.value}>
-                {t.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <hr className="border-border" />
 
-      {/* Title */}
-      <div className="space-y-1.5">
-        <Label htmlFor="title">Document Title *</Label>
-        <Input
-          id="title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="e.g. Blood Test Report — Jan 2025"
-          maxLength={100}
-        />
-        {title.length > 80 && (
-          <p className="text-xs text-muted-foreground">{title.length}/100</p>
-        )}
-      </div>
-
-      {/* File upload */}
+      {/* ── Section 2: The File ── */}
       <div className="space-y-1.5">
         <Label>File *</Label>
         {file ? (
@@ -316,74 +319,93 @@ export function UploadDocumentForm({
         </div>
       )}
 
-      {/* Link to condition */}
-      {selectedMemberId && (
-        <div className="space-y-1.5">
-          <Label>Link to Medical Condition</Label>
-          <Select value={conditionId} onValueChange={setConditionId} disabled={loadingConditions}>
-            <SelectTrigger>
-              <SelectValue placeholder={loadingConditions ? 'Loading…' : 'Select'} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="general">Not linked to a condition (General)</SelectItem>
-              {conditions.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
-                  {c.status ? ` · ${STATUS_LABELS[c.status] ?? c.status}` : ''}
-                  {c.diagnosed_on ? ` · ${formatDate(c.diagnosed_on)}` : ''}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {conditionId !== 'general' && (
-            <p className="text-xs text-muted-foreground">
-              Linking a condition enables second opinion matching in Phase 2.
-            </p>
-          )}
-        </div>
-      )}
+      <hr className="border-border" />
 
-      {/* Optional fields */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label htmlFor="document_date">Document Date</Label>
-          <Input
-            id="document_date"
-            type="date"
-            value={documentDate}
-            onChange={(e) => setDocumentDate(e.target.value)}
+      {/* ── Section 3: Visit Details (collapsed by default) ── */}
+      <div>
+        <button
+          type="button"
+          onClick={() => setVisitDetailsOpen((p) => !p)}
+          className="flex items-center justify-between w-full py-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <span>Add visit details <span className="font-normal">(optional)</span></span>
+          <ChevronDown
+            className={`size-4 transition-transform duration-200 ${visitDetailsOpen ? 'rotate-180' : ''}`}
           />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="doctor_name">Doctor Name</Label>
-          <Input
-            id="doctor_name"
-            value={doctorName}
-            onChange={(e) => setDoctorName(e.target.value)}
-            placeholder="Dr. Sharma"
-          />
-        </div>
-      </div>
+        </button>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="hospital_name">Hospital / Clinic</Label>
-        <Input
-          id="hospital_name"
-          value={hospitalName}
-          onChange={(e) => setHospitalName(e.target.value)}
-          placeholder="Apollo Hospitals, Mumbai"
-        />
-      </div>
+        {visitDetailsOpen && (
+          <div className="mt-4 space-y-4">
+            {/* Link to condition */}
+            {selectedMemberId && (
+              <div className="space-y-1.5">
+                <Label>Link to Medical Condition</Label>
+                <Select value={conditionId} onValueChange={setConditionId} disabled={loadingConditions}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={loadingConditions ? 'Loading…' : 'Select'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="general">Not linked to a condition (General)</SelectItem>
+                    {conditions.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                        {c.status ? ` · ${STATUS_LABELS[c.status] ?? c.status}` : ''}
+                        {c.diagnosed_on ? ` · ${formatDate(c.diagnosed_on)}` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {conditionId !== 'general' && (
+                  <p className="text-xs text-muted-foreground">
+                    Linking a condition enables second opinion matching in Phase 2.
+                  </p>
+                )}
+              </div>
+            )}
 
-      <div className="space-y-1.5">
-        <Label htmlFor="notes">Notes</Label>
-        <Textarea
-          id="notes"
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder="Any additional notes…"
-          rows={3}
-        />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="document_date">Document Date</Label>
+                <Input
+                  id="document_date"
+                  type="date"
+                  value={documentDate}
+                  onChange={(e) => setDocumentDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="doctor_name">Doctor Name</Label>
+                <Input
+                  id="doctor_name"
+                  value={doctorName}
+                  onChange={(e) => setDoctorName(e.target.value)}
+                  placeholder="Dr. Sharma"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="hospital_name">Hospital / Clinic</Label>
+              <Input
+                id="hospital_name"
+                value={hospitalName}
+                onChange={(e) => setHospitalName(e.target.value)}
+                placeholder="Apollo Hospitals, Mumbai"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="notes">Notes</Label>
+              <Textarea
+                id="notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Any additional notes…"
+                rows={3}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {error && (
