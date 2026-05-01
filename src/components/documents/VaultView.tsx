@@ -15,7 +15,6 @@ import {
   FolderOpen,
   ChevronDown,
   Plus,
-  Zap,
   Pin,
   AlertTriangle,
 } from 'lucide-react'
@@ -164,12 +163,6 @@ function DocumentRow({
             .join(' · ')}
         </p>
       </div>
-      {doc.phase2_ready && (
-        <span className="shrink-0 flex items-center gap-0.5 text-xs text-amber-600">
-          <Zap className="size-3" />
-          <span className="hidden sm:inline">Phase 2</span>
-        </span>
-      )}
     </Link>
   )
 }
