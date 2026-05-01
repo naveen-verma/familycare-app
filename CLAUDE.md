@@ -466,6 +466,34 @@ style: improve mobile layout on member profile
 
 ---
 
+## Post-Deployment Checklist
+
+Run these checks after every push to staging or production.
+
+### Supabase Auth Settings (check after every db push)
+Supabase can reset auth settings after project re-linking.
+Verify in BOTH staging and production Supabase dashboards:
+
+Authentication → Providers → Email:
+  ✅ Enable Email provider     ON
+  ❌ Confirm email             OFF  ← resets to ON after db push
+  ✅ Enable Email OTP          ON
+  ✅ OTP Expiry                600 seconds
+
+Authentication → URL Configuration:
+  Site URL:      https://familycare-app-ten.vercel.app
+  Redirect URLs: https://familycare-app-ten.vercel.app/**
+
+If new users receive "Confirm Your Signup" link instead of OTP:
+  → Confirm email is ON — turn it OFF immediately
+  → This is the most common post-deployment auth issue
+
+### Vercel Deployment
+  ✅ Check Vercel dashboard — deployment status green
+  ✅ Test login flow with a new email on staging
+
+---
+
 ## Planned UX Enhancements — Phase 1
 
 These features are planned but not yet built. Claude Code should be
