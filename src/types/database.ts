@@ -6,6 +6,7 @@ export type ConditionStatus = 'active' | 'resolved' | 'chronic' | 'monitoring'
 export type DocumentType = 'prescription' | 'report' | 'scan' | 'insurance' | 'vaccination' | 'other'
 export type EventType = 'visit' | 'surgery' | 'test' | 'vaccination' | 'hospitalization' | 'therapy' | 'other'
 export type MedicationFrequency = 'once daily' | 'twice daily' | 'three times daily' | 'four times daily' | 'every alternate day' | 'weekly' | 'as needed' | 'other'
+export type ConsultationType = 'visit' | 'surgery' | 'test' | 'vaccination' | 'hospitalization' | 'therapy' | 'other'
 
 export interface User {
   id: string
@@ -41,6 +42,10 @@ export interface FamilyMember {
   mobile?: string
   is_primary: boolean
   profile_photo_url?: string
+  height_cm?: number | null
+  weight_kg?: number | null
+  bmi?: number | null
+  bmi_date?: string | null
   created_at: string
   updated_at: string
   deleted_at?: string
@@ -64,6 +69,7 @@ export interface MedicalCondition {
   diagnosed_by?: string
   status: ConditionStatus
   notes?: string
+  is_pinned: boolean
   specialist_matched: boolean
   second_opinion_requested: boolean
   created_at: string
@@ -111,6 +117,20 @@ export interface Medication {
   deleted_at?: string
 }
 
+export interface ConditionConsultation {
+  id: string
+  medical_condition_id: string | null
+  consultation_type: ConsultationType
+  doctor_name: string
+  hospital_name?: string
+  consultation_date?: string
+  notes?: string
+  is_pinned: boolean
+  created_at: string
+  updated_at: string
+  deleted_at?: string
+}
+
 export interface MedicalEvent {
   id: string
   family_member_id: string
@@ -123,7 +143,41 @@ export interface MedicalEvent {
   notes?: string
   follow_up_date?: string
   follow_up_sent: boolean
+  is_pinned: boolean
   created_at: string
   updated_at: string
   deleted_at?: string
+}
+
+export interface InterestSignal {
+  id: string
+  family_member_id: string
+  medical_condition_id: string
+  icd10_condition_id: string | null
+  signal_type: string
+  notified: boolean
+  digest_included: boolean
+  signal_date: string
+  created_at: string
+}
+
+export interface ShareLink {
+  id: string
+  family_member_id: string
+  created_by: string
+  token: string
+  expires_at: string
+  is_active: boolean
+  recipient_mobile?: string | null
+  recipient_name?: string | null
+  doctor_name?: string | null
+  opened_at?: string | null
+  open_count: number
+  view_count: number
+  include_conditions: boolean
+  include_medications: boolean
+  include_documents: boolean
+  include_timeline: boolean
+  selected_condition_ids: string[]
+  created_at: string
 }
