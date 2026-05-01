@@ -202,17 +202,17 @@ function EventCard({
           >
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs text-muted-foreground shrink-0">
+                <span className="text-xs text-gray-400 font-normal tabular-nums shrink-0">
                   {formatEventDateShort(event.date)}
                 </span>
                 <span
-                  className={`inline-flex h-5 items-center gap-1 rounded-full border px-2 text-xs font-medium shrink-0 ${cfg.badgeClass}`}
+                  className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium shrink-0 ${cfg.badgeClass}`}
                 >
                   <cfg.Icon className="size-3" />
                   {cfg.label}
                 </span>
               </div>
-              <p className="text-sm font-semibold leading-snug truncate mt-0.5">
+              <p className="text-sm font-semibold text-gray-900 leading-snug truncate mt-0.5">
                 {event.title}
               </p>
             </div>

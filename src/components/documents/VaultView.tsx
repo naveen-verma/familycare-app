@@ -263,8 +263,9 @@ function ConditionGroup({
           aria-expanded={open}
         >
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm font-medium">{condition.name}</span>
+            {/* Line 1: condition name + status badges */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-sm font-medium text-gray-900">{condition.name}</span>
               <span
                 className={`inline-flex h-5 items-center rounded-full border px-2 text-xs font-medium capitalize ${statusStyles[condition.status] ?? statusStyles.monitoring}`}
               >
@@ -282,20 +283,21 @@ function ConditionGroup({
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-3 mt-0.5">
+            {/* Line 2: metadata — category · date · doc count */}
+            <div className="flex items-center gap-1 mt-0.5 text-xs text-gray-400">
               {condition.category && (
-                <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
-                  {condition.category}
-                </span>
+                <>
+                  <span>{condition.category}</span>
+                  <span>·</span>
+                </>
               )}
               {condition.diagnosed_on && (
-                <span className="text-xs text-muted-foreground">
-                  Diagnosed {formatDate(condition.diagnosed_on)}
-                </span>
+                <>
+                  <span>Diagnosed {formatDate(condition.diagnosed_on)}</span>
+                  <span>·</span>
+                </>
               )}
-              <span className="text-xs text-muted-foreground">
-                {totalDocs} {totalDocs === 1 ? 'document' : 'documents'}
-              </span>
+              <span>{totalDocs} {totalDocs === 1 ? 'document' : 'documents'}</span>
             </div>
           </div>
           <ChevronDown
