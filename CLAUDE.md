@@ -37,6 +37,11 @@ work well on both mobile and desktop from day one.
 
 ## Product Roadmap
 
+Phase 1 — Family Medical Vault (Months 1–6)      ✅ Built
+Phase 2 — Second Opinion Engine (Months 7–15)    🔜 Next
+Phase 3 — Full Care Ecosystem (Months 16–24)     📋 Planned
+Phase 4 — IoT & Patient Safety (Months 25–36)    💡 New
+
 ### Phase 1 — Family Medical Vault (Months 1–6)
 **Goal:** A working app where families store and manage health records
 
@@ -105,6 +110,148 @@ Phase 1 seeds this engine with:
 - Weekly founder digest showing top conditions people want opinions on
 
 Phase 2 builds the full engine on top of this data foundation.
+
+### Phase 4 — IoT & Patient Safety (Months 25–36)
+**Goal:** Real-time health monitoring and patient safety
+for elderly and chronically ill family members
+
+#### 4.1 Health Device Monitoring
+Real-time readings from Bluetooth health devices:
+
+- Glucometer (Accu-Chek, OneTouch BLE models)
+  → Blood sugar readings auto-logged to timeline
+  → Alert family if > 200 mg/dL or < 70 mg/dL
+  → Emergency alert if < 50 mg/dL
+
+- BP Monitor (Omron BLE models)
+  → Systolic, diastolic, pulse auto-logged
+  → Alert if systolic > 140 mmHg
+  → Emergency alert if systolic > 180 mmHg
+
+- Pulse Oximeter (any BLE fingertip model)
+  → SpO2 + heart rate auto-logged
+  → Alert if SpO2 < 94%
+  → Emergency alert if SpO2 < 90%
+
+Integration approach:
+  Mobile app reads devices via Bluetooth Low Energy
+  Node-RED on Raspberry Pi for always-on monitoring
+  All readings stored in health_readings table
+  n8n triggers WhatsApp alerts on anomalies
+
+#### 4.2 Geofencing for Dementia Patient Safety
+Real-time location monitoring for elderly patients
+with dementia or Alzheimer's disease.
+
+Context:
+  5.3 million dementia patients in India (2020)
+  Most cared for at home with no affordable
+  monitoring solution — significant unmet need
+
+How it works:
+  Family defines safe zone on map
+  Patient carries GPS tracker (Jio Tracker ~₹1,999)
+  or wears GPS-enabled smartwatch
+  Node-RED checks location every 5 minutes
+  If patient exits safe zone:
+    → Immediate WhatsApp alert to ALL family members
+    → Alert includes Google Maps link to last location
+    → Alert logged in FamilyCare dashboard
+    → Escalating alerts if not acknowledged
+
+Alert format:
+  "⚠️ [Patient name] has left the safe zone.
+   Last location: [Google Maps link]
+   Time: [timestamp]
+   Please check on them immediately.
+   - FamilyCare Safety Alert"
+
+#### 4.3 New Database Tables (Phase 4)
+
+health_readings:
+  id, family_member_id, device_type, reading_type,
+  value, unit, recorded_at, source, notes
+  device_type: glucometer | bp_monitor | oximeter
+  reading_type: blood_sugar | systolic | diastolic |
+                pulse | spo2 | heart_rate
+  source: manual | bluetooth | iot_hub | node_red
+
+geofence_zones:
+  id, family_member_id, zone_name,
+  center_lat, center_lng, radius_meters,
+  is_active, alert_on_exit, alert_on_entry
+
+location_events:
+  id, family_member_id, geofence_zone_id,
+  event_type (entered|exited),
+  latitude, longitude, recorded_at, alert_sent
+
+#### 4.4 Node-RED Workflows (Phase 4)
+
+WF-IoT-1: Blood Sugar Monitor
+  Trigger: New glucometer reading
+  Action: Store → threshold check → alert family
+
+WF-IoT-2: BP Monitor
+  Trigger: New BP reading
+  Action: Store → threshold check → alert family
+
+WF-IoT-3: Oximeter Monitor
+  Trigger: New SpO2 reading
+  Action: Store → emergency alert if SpO2 < 90%
+
+WF-IoT-4: Geofence Monitor
+  Trigger: Every 5 minutes
+  Action: Check GPS → compare geofence boundary
+          → WhatsApp alert if patient exited
+
+Architecture:
+  Raspberry Pi (~₹3,500) installed at home
+  Node-RED always running — reads devices
+  Sends data to Supabase REST API
+  n8n handles alert distribution
+
+#### 4.5 Business Model (Phase 4)
+
+Subscription:
+  IoT Plan: ₹499/month per family
+  Includes unlimited device readings,
+  real-time geofencing, weekly health reports,
+  caregiver dashboard, priority support
+
+Hardware (Phase 4+):
+  FamilyCare Hub — ₹3,999 one-time
+  Pre-configured Raspberry Pi + Node-RED
+  Plug and play — no technical setup needed
+
+Enterprise:
+  Nursing homes, old age homes, hospitals
+  Per-bed pricing model
+  EMR system integration
+
+#### 4.6 Grant and Partnership Opportunities
+
+  ARDSI (Alzheimer's and Related Disorders
+  Society of India)
+  HelpAge India
+  NASSCOM Foundation health tech grants
+  iSPIRT health stack initiatives
+  Startup India health tech scheme
+
+#### 4.7 Phase 4 Prerequisites
+
+Before building:
+  1. Complete Phase 2 and Phase 3
+  2. Interview 5+ families with diabetic elderly
+  3. Interview 3+ families with dementia patients
+  4. Validate BLE device compatibility in India
+  5. Build Android Bluetooth SDK integration
+  6. Prototype Node-RED + Raspberry Pi setup
+  7. Test geofencing with Jio Tracker API
+
+Estimated start: Month 25
+Target launch:   Month 34-36
+
 
 ---
 
@@ -316,6 +463,34 @@ style: improve mobile layout on member profile
 - Tailwind + shadcn/ui only — no other CSS frameworks
 - No direct DB schema changes — all changes via migration files
   in the familycare repo
+
+---
+
+## Post-Deployment Checklist
+
+Run these checks after every push to staging or production.
+
+### Supabase Auth Settings (check after every db push)
+Supabase can reset auth settings after project re-linking.
+Verify in BOTH staging and production Supabase dashboards:
+
+Authentication → Providers → Email:
+  ✅ Enable Email provider     ON
+  ❌ Confirm email             OFF  ← resets to ON after db push
+  ✅ Enable Email OTP          ON
+  ✅ OTP Expiry                600 seconds
+
+Authentication → URL Configuration:
+  Site URL:      https://familycare-app-ten.vercel.app
+  Redirect URLs: https://familycare-app-ten.vercel.app/**
+
+If new users receive "Confirm Your Signup" link instead of OTP:
+  → Confirm email is ON — turn it OFF immediately
+  → This is the most common post-deployment auth issue
+
+### Vercel Deployment
+  ✅ Check Vercel dashboard — deployment status green
+  ✅ Test login flow with a new email on staging
 
 ---
 

@@ -51,6 +51,19 @@ export function Sidebar() {
       <div className="p-2">
         <Separator className="mb-2" />
         <LogoutButton variant="sidebar" />
+        <div className="flex items-center justify-center gap-3 mt-3 px-1">
+          <Link href="/terms" className="text-[11px] text-muted-foreground hover:text-indigo-600 transition-colors">
+            Terms
+          </Link>
+          <span className="text-muted-foreground text-[11px]">·</span>
+          <Link href="/privacy" className="text-[11px] text-muted-foreground hover:text-indigo-600 transition-colors">
+            Privacy
+          </Link>
+          <span className="text-muted-foreground text-[11px]">·</span>
+          <Link href="/disclaimer" className="text-[11px] text-muted-foreground hover:text-indigo-600 transition-colors">
+            Disclaimer
+          </Link>
+        </div>
       </div>
     </aside>
   )

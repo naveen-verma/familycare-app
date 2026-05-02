@@ -2,10 +2,13 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { updateUserProfile, createPrimaryFamilyMember } from '@/lib/onboarding'
+import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Card,
   CardContent,
@@ -44,6 +47,7 @@ export default function OnboardingPage() {
   const [mobile, setMobile] = useState('')
   const [city, setCity] = useState('')
   const [state, setState] = useState('')
+  const [termsAccepted, setTermsAccepted] = useState(false)
 
   // Step 2 data
   const [dob, setDob] = useState('')
@@ -80,15 +84,30 @@ export default function OnboardingPage() {
       setError('Please enter a valid 10-digit mobile number')
       return
     }
+    if (!termsAccepted) {
+      setError('Please accept the Terms of Service, Privacy Policy and Medical Disclaimer to continue')
+      return
+    }
 
     setLoading(true)
     try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+
       await updateUserProfile({
         full_name: fullName.trim(),
         mobile,
         city: city.trim(),
         state
       })
+
+      if (user) {
+        await supabase
+          .from('users')
+          .update({ terms_accepted_at: new Date().toISOString() })
+          .eq('supabase_auth_id', user.id)
+      }
+
       setStep(2)
     } catch (err: any) {
       setError(err.message || 'Something went wrong')
@@ -209,6 +228,30 @@ export default function OnboardingPage() {
                 </div>
               </div>
 
+              <div className="flex items-start gap-3 rounded-lg border bg-gray-50 px-3 py-3">
+                <Checkbox
+                  id="terms"
+                  checked={termsAccepted}
+                  onCheckedChange={(checked) => setTermsAccepted(checked === true)}
+                  className="mt-0.5 shrink-0"
+                />
+                <label htmlFor="terms" className="text-sm text-gray-600 leading-relaxed cursor-pointer">
+                  I agree to the{' '}
+                  <Link href="/terms" target="_blank" className="text-indigo-600 hover:underline font-medium">
+                    Terms of Service
+                  </Link>
+                  ,{' '}
+                  <Link href="/privacy" target="_blank" className="text-indigo-600 hover:underline font-medium">
+                    Privacy Policy
+                  </Link>{' '}
+                  and{' '}
+                  <Link href="/disclaimer" target="_blank" className="text-indigo-600 hover:underline font-medium">
+                    Medical Disclaimer
+                  </Link>
+                  . I understand that FamilyCare is a health record management tool and not a substitute for professional medical advice.
+                </label>
+              </div>
+
               {error && (
                 <div className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-md">
                   {error}
@@ -218,7 +261,7 @@ export default function OnboardingPage() {
               <Button
                 type="submit"
                 className="w-full bg-indigo-600 hover:bg-indigo-700"
-                disabled={loading}
+                disabled={loading || !termsAccepted}
               >
                 {loading ? 'Saving...' : 'Continue →'}
               </Button>

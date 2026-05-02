@@ -39,7 +39,14 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith('/verify')
 
   // Paths that are accessible without a session
-  const isPublicPath = isAuthOnlyPath || pathname.startsWith('/onboarding')
+  const isPublicPath =
+    isAuthOnlyPath ||
+    pathname.startsWith('/onboarding') ||
+    pathname.startsWith('/view') ||
+    pathname.startsWith('/offline') ||
+    pathname.startsWith('/terms') ||
+    pathname.startsWith('/privacy') ||
+    pathname.startsWith('/disclaimer')
 
   // ── Authenticated user ────────────────────────────────────────────────────
   if (user && !sessionError) {

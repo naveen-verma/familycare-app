@@ -30,7 +30,7 @@ export default async function MembersPage() {
           <AddMemberDialog />
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+        <div className="flex flex-col gap-3 sm:grid sm:grid-cols-2 md:grid-cols-3">
           {members.map((member) => (
             <MemberCard key={member.id} member={member} />
           ))}

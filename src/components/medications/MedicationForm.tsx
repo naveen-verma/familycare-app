@@ -242,6 +242,11 @@ export function MedicationForm({
             ))}
           </SelectContent>
         </Select>
+        {!frequency && (
+          <p className="text-xs text-muted-foreground">
+            Time reminders will appear after selecting frequency
+          </p>
+        )}
       </div>
 
       {/* 5. Time of Day */}
@@ -264,6 +269,13 @@ export function MedicationForm({
           </div>
         </div>
       )}
+
+      {/* ── Optional details divider ── */}
+      <div className="border-t pt-4">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">
+          Optional Details
+        </p>
+      </div>
 
       {/* 6. Link to Condition */}
       {memberId && (
@@ -327,7 +339,7 @@ export function MedicationForm({
       </div>
 
       {/* 10. Reminder */}
-      <div className="flex items-start gap-3 rounded-lg border border-border p-3">
+      <div className="flex items-start gap-3 rounded-lg border border-border bg-gray-50 p-3">
         <Switch
           id="reminder"
           checked={reminderEnabled}

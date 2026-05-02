@@ -15,10 +15,6 @@ import {
   FolderOpen,
   ChevronDown,
   Plus,
-  Calendar,
-  Stethoscope,
-  Building2,
-  Zap,
   Pin,
   AlertTriangle,
 } from 'lucide-react'
@@ -74,6 +70,66 @@ const statusStyles: Record<string, string> = {
   resolved: 'bg-green-100 text-green-700 border-green-200',
 }
 
+// ---- Flat document card (mobile-only — 2-level view) ----
+
+function FlatDocumentCard({
+  doc,
+  memberId,
+  conditionId,
+  conditionName,
+}: {
+  doc: VaultDocument
+  memberId: string
+  conditionId: string
+  conditionName: string | null
+}) {
+  return (
+    <Link
+      href={`/documents/${memberId}/${conditionId}`}
+      className="flex items-center gap-3 rounded-xl border p-3 min-h-[72px] hover:bg-muted/40 transition-colors"
+    >
+      <FileTypeIcon fileType={doc.file_type} />
+      <div className="flex-1 min-w-0">
+        <p className="font-medium text-sm truncate">{doc.title}</p>
+        {conditionName && (
+          <p className="text-xs text-muted-foreground truncate">{conditionName}</p>
+        )}
+        <span className="inline-flex h-4 items-center rounded-full bg-muted px-1.5 text-[10px] font-medium text-muted-foreground mt-0.5">
+          {DOC_TYPE_LABELS[doc.document_type as DocumentType] ?? doc.document_type}
+        </span>
+      </div>
+      {doc.document_date && (
+        <p className="shrink-0 text-xs text-muted-foreground">{formatDate(doc.document_date)}</p>
+      )}
+    </Link>
+  )
+}
+
+// ---- Filter chips config ----
+
+const filterChips: { label: string; value: DocumentType | 'all' }[] = [
+  { label: 'All', value: 'all' },
+  { label: 'Prescriptions', value: 'prescription' },
+  { label: 'Reports', value: 'report' },
+  { label: 'Scans', value: 'scan' },
+  { label: 'Other', value: 'other' },
+]
+
+// ---- File type icon ----
+
+function FileTypeIcon({ fileType }: { fileType: string | null | undefined }) {
+  const isImage = fileType === 'jpg' || fileType === 'jpeg' || fileType === 'png'
+  const isPdf = fileType === 'pdf'
+  const bgClass = isPdf ? 'bg-red-100' : isImage ? 'bg-blue-100' : 'bg-gray-100'
+  const iconClass = isPdf ? 'text-red-600' : isImage ? 'text-blue-600' : 'text-gray-500'
+  const Icon = isImage ? FileImage : FileText
+  return (
+    <div className={`size-10 rounded-xl flex items-center justify-center shrink-0 ${bgClass}`}>
+      <Icon className={`size-5 ${iconClass}`} />
+    </div>
+  )
+}
+
 // ---- Document row ----
 
 function DocumentRow({
@@ -85,52 +141,28 @@ function DocumentRow({
   memberId: string
   conditionId: string
 }) {
-  const isImage = doc.file_type === 'jpg' || doc.file_type === 'jpeg' || doc.file_type === 'png'
   const href = `/documents/${memberId}/${conditionId}`
 
   return (
     <Link
       href={href}
-      className="flex items-start gap-3 rounded-lg px-3 py-2.5 hover:bg-muted/60 transition-colors group"
+      className="flex items-center gap-3 rounded-lg px-3 py-2.5 min-h-[56px] hover:bg-muted/60 transition-colors group"
     >
-      <div className="mt-0.5 size-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
-        {isImage ? (
-          <FileImage className="size-4 text-muted-foreground" />
-        ) : (
-          <FileText className="size-4 text-muted-foreground" />
-        )}
-      </div>
+      <FileTypeIcon fileType={doc.file_type} />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">
           {doc.title}
         </p>
-        <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
-          {doc.document_date && (
-            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Calendar className="size-3" />
-              {formatDate(doc.document_date)}
-            </span>
-          )}
-          {doc.doctor_name && (
-            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Stethoscope className="size-3" />
-              {doc.doctor_name}
-            </span>
-          )}
-          {doc.hospital_name && (
-            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Building2 className="size-3" />
-              {doc.hospital_name}
-            </span>
-          )}
-        </div>
+        <p className="text-xs text-muted-foreground truncate mt-0.5">
+          {[
+            DOC_TYPE_LABELS[doc.document_type as DocumentType] ?? doc.document_type,
+            doc.doctor_name,
+            doc.document_date ? formatDate(doc.document_date) : null,
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        </p>
       </div>
-      {doc.phase2_ready && (
-        <span className="shrink-0 flex items-center gap-0.5 text-xs text-amber-600 mt-0.5">
-          <Zap className="size-3" />
-          <span className="hidden sm:inline">Phase 2</span>
-        </span>
-      )}
     </Link>
   )
 }
@@ -165,26 +197,34 @@ function DocTypeGroup({
 }
 
 // ---- Condition group (collapsible) ----
-// Uses a <div> header row to avoid the invalid nested-<button> HTML error.
-// The toggle area and pin button are separate interactive elements inside the div.
 
 function ConditionGroup({
   condition,
   memberId,
   onPinToggle,
+  docTypeFilter,
 }: {
   condition: VaultCondition
   memberId: string
   onPinToggle: PinToggleFn
+  docTypeFilter: DocumentType | 'all'
 }) {
   const [open, setOpen] = useState(false)
   const [pinned, setPinned] = useState(condition.is_pinned)
   const [pinning, setPinning] = useState(false)
-  const totalDocs = condition.documents.length
+
+  const visibleDocs =
+    docTypeFilter === 'all'
+      ? condition.documents
+      : condition.documents.filter((d) => d.document_type === docTypeFilter)
+
+  const totalDocs = visibleDocs.length
+
+  if (docTypeFilter !== 'all' && totalDocs === 0) return null
 
   const docsByType = DOC_TYPE_ORDER.reduce<Record<DocumentType, VaultDocument[]>>(
     (acc, type) => {
-      acc[type] = condition.documents.filter((d) => d.document_type === type)
+      acc[type] = visibleDocs.filter((d) => d.document_type === type)
       return acc
     },
     {} as Record<DocumentType, VaultDocument[]>
@@ -199,7 +239,7 @@ function ConditionGroup({
     try {
       await onPinToggle(condition.id, prev)
     } catch {
-      setPinned(prev) // revert on error
+      setPinned(prev)
     } finally {
       setPinning(false)
     }
@@ -209,7 +249,6 @@ function ConditionGroup({
     <div className="border rounded-lg overflow-hidden">
       {/* Header row — div with two interactive zones to avoid nested <button> */}
       <div className="flex items-center gap-1 hover:bg-muted/40 transition-colors">
-        {/* Expand/collapse toggle — takes up most of the row */}
         <button
           type="button"
           onClick={() => setOpen((p) => !p)}
@@ -217,8 +256,9 @@ function ConditionGroup({
           aria-expanded={open}
         >
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm font-medium">{condition.name}</span>
+            {/* Line 1: condition name + status badges */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-sm font-medium text-gray-900">{condition.name}</span>
               <span
                 className={`inline-flex h-5 items-center rounded-full border px-2 text-xs font-medium capitalize ${statusStyles[condition.status] ?? statusStyles.monitoring}`}
               >
@@ -236,20 +276,21 @@ function ConditionGroup({
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-3 mt-0.5">
+            {/* Line 2: metadata — category · date · doc count */}
+            <div className="flex items-center gap-1 mt-0.5 text-xs text-gray-400">
               {condition.category && (
-                <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
-                  {condition.category}
-                </span>
+                <>
+                  <span>{condition.category}</span>
+                  <span>·</span>
+                </>
               )}
               {condition.diagnosed_on && (
-                <span className="text-xs text-muted-foreground">
-                  Diagnosed {formatDate(condition.diagnosed_on)}
-                </span>
+                <>
+                  <span>Diagnosed {formatDate(condition.diagnosed_on)}</span>
+                  <span>·</span>
+                </>
               )}
-              <span className="text-xs text-muted-foreground">
-                {totalDocs} {totalDocs === 1 ? 'document' : 'documents'}
-              </span>
+              <span>{totalDocs} {totalDocs === 1 ? 'document' : 'documents'}</span>
             </div>
           </div>
           <ChevronDown
@@ -299,15 +340,22 @@ function ConditionGroup({
 function GeneralDocsGroup({
   docs,
   memberId,
+  docTypeFilter,
 }: {
   docs: VaultDocument[]
   memberId: string
+  docTypeFilter: DocumentType | 'all'
 }) {
   const [open, setOpen] = useState(false)
 
+  const visibleDocs =
+    docTypeFilter === 'all' ? docs : docs.filter((d) => d.document_type === docTypeFilter)
+
+  if (docTypeFilter !== 'all' && visibleDocs.length === 0) return null
+
   const docsByType = DOC_TYPE_ORDER.reduce<Record<DocumentType, VaultDocument[]>>(
     (acc, type) => {
-      acc[type] = docs.filter((d) => d.document_type === type)
+      acc[type] = visibleDocs.filter((d) => d.document_type === type)
       return acc
     },
     {} as Record<DocumentType, VaultDocument[]>
@@ -359,20 +407,48 @@ function MemberSection({
   open,
   onToggle,
   onPinToggle,
+  docTypeFilter,
 }: {
   member: VaultMember
   open: boolean
   onToggle: () => void
   onPinToggle: PinToggleFn
+  docTypeFilter: DocumentType | 'all'
 }) {
   const age = calculateAge(member.date_of_birth)
   const avatarColor = avatarColors[member.relation ?? 'other'] ?? avatarColors.other
   const initials = getInitials(member.full_name)
+
+  const visibleConditions =
+    docTypeFilter === 'all'
+      ? member.conditions
+      : member.conditions.filter((c) =>
+          c.documents.some((d) => d.document_type === docTypeFilter)
+        )
+
+  const visibleGeneralDocs =
+    docTypeFilter === 'all'
+      ? member.general_documents
+      : member.general_documents.filter((d) => d.document_type === docTypeFilter)
+
   const totalDocs =
     member.conditions.reduce((sum, c) => sum + c.documents.length, 0) +
     member.general_documents.length
+
   const hasContent =
     member.conditions.length > 0 || member.general_documents.length > 0
+
+  // Flat doc list for mobile (2-level: member → doc, no condition accordion)
+  const flatDocs: Array<{ doc: VaultDocument; conditionId: string; conditionName: string | null }> = [
+    ...member.conditions.flatMap((c) =>
+      c.documents.map((d) => ({ doc: d, conditionId: c.id, conditionName: c.name }))
+    ),
+    ...member.general_documents.map((d) => ({ doc: d, conditionId: 'general', conditionName: null })),
+  ]
+  const visibleFlatDocs =
+    docTypeFilter === 'all'
+      ? flatDocs
+      : flatDocs.filter(({ doc }) => doc.document_type === docTypeFilter)
 
   return (
     <div className="rounded-xl border overflow-hidden">
@@ -412,25 +488,65 @@ function MemberSection({
 
       {/* Expanded content */}
       {open && (
-        <div className="border-t px-4 py-4 space-y-3 bg-muted/20">
+        <div className="border-t bg-muted/20">
           {!hasContent ? (
-            <div className="text-center py-8">
+            <div className="px-4 py-8 text-center">
               <FolderOpen className="size-8 text-muted-foreground mx-auto mb-2" />
               <p className="text-sm text-muted-foreground">No medical records yet</p>
             </div>
           ) : (
             <>
-              {member.conditions.map((condition) => (
-                <ConditionGroup
-                  key={condition.id}
-                  condition={condition}
-                  memberId={member.id}
-                  onPinToggle={onPinToggle}
-                />
-              ))}
-              {member.general_documents.length > 0 && (
-                <GeneralDocsGroup docs={member.general_documents} memberId={member.id} />
-              )}
+              {/* Mobile: flat 2-level document cards (no condition accordion) */}
+              <div className="px-4 py-3 space-y-2 sm:hidden">
+                {visibleFlatDocs.length === 0 ? (
+                  <div className="text-center py-6">
+                    <FileText className="size-8 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">
+                      No {DOC_TYPE_LABELS[docTypeFilter as DocumentType]?.toLowerCase() ?? 'documents'} for this member
+                    </p>
+                  </div>
+                ) : (
+                  visibleFlatDocs.map(({ doc, conditionId, conditionName }) => (
+                    <FlatDocumentCard
+                      key={doc.id}
+                      doc={doc}
+                      memberId={member.id}
+                      conditionId={conditionId}
+                      conditionName={conditionName}
+                    />
+                  ))
+                )}
+              </div>
+
+              {/* Desktop: nested accordion (condition → doc type → doc) */}
+              <div className="hidden sm:block px-4 py-4 space-y-3">
+                {visibleConditions.map((condition) => (
+                  <ConditionGroup
+                    key={condition.id}
+                    condition={condition}
+                    memberId={member.id}
+                    onPinToggle={onPinToggle}
+                    docTypeFilter={docTypeFilter}
+                  />
+                ))}
+                {visibleGeneralDocs.length > 0 && (
+                  <GeneralDocsGroup
+                    docs={visibleGeneralDocs}
+                    memberId={member.id}
+                    docTypeFilter={docTypeFilter}
+                  />
+                )}
+                {docTypeFilter !== 'all' &&
+                  visibleConditions.length === 0 &&
+                  visibleGeneralDocs.length === 0 && (
+                    <div className="text-center py-8">
+                      <FileText className="size-8 text-muted-foreground mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground">
+                        No {DOC_TYPE_LABELS[docTypeFilter as DocumentType]?.toLowerCase() ?? 'documents'} for this member
+                      </p>
+                    </div>
+                  )}
+              </div>
             </>
           )}
         </div>
@@ -448,11 +564,11 @@ export function VaultView({
   members: VaultMember[]
   onPinToggle: PinToggleFn
 }) {
-  // Only first member expanded by default
   const [openMemberIds, setOpenMemberIds] = useState<Set<string>>(
     () => (members.length > 0 ? new Set([members[0].id]) : new Set())
   )
   const [filterMemberId, setFilterMemberId] = useState('all')
+  const [docTypeFilter, setDocTypeFilter] = useState<DocumentType | 'all'>('all')
 
   function handleFilterChange(value: string) {
     setFilterMemberId(value)
@@ -495,7 +611,7 @@ export function VaultView({
   return (
     <div className="relative">
       {/* Member filter */}
-      <div className="mb-4">
+      <div className="mb-3">
         <Select value={filterMemberId} onValueChange={handleFilterChange}>
           <SelectTrigger className="w-48">
             <SelectValue />
@@ -511,6 +627,24 @@ export function VaultView({
         </Select>
       </div>
 
+      {/* Document type filter chips */}
+      <div className="flex gap-2 overflow-x-auto pb-2 mb-4 -mx-4 px-4 sm:mx-0 sm:px-0">
+        {filterChips.map(({ label, value }) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setDocTypeFilter(value)}
+            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors min-h-[32px] ${
+              docTypeFilter === value
+                ? 'bg-teal-600 text-white'
+                : 'bg-muted text-muted-foreground hover:bg-muted/80'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/* Member sections */}
       <div className="space-y-3">
         {visibleMembers.map((member) => (
@@ -520,11 +654,12 @@ export function VaultView({
             open={openMemberIds.has(member.id)}
             onToggle={() => toggleMember(member.id)}
             onPinToggle={onPinToggle}
+            docTypeFilter={docTypeFilter}
           />
         ))}
       </div>
 
-      {/* FAB — only upload entry point */}
+      {/* FAB */}
       <Link
         href="/documents/upload"
         className="fixed bottom-20 right-4 md:bottom-6 md:right-6 size-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg hover:bg-primary/90 transition-colors z-40"
