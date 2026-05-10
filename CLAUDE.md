@@ -127,49 +127,13 @@ Features:
 **Goal:** Real-time health monitoring and patient safety
 for elderly and chronically ill family members
 
-#### 4.1 Health Device Monitoring
-Real-time readings from Bluetooth health devices:
+4.1 Health Device Monitoring — Glucometer, BP Monitor, Oximeter
+    via Bluetooth Low Energy → Node-RED on Raspberry Pi
+    → n8n WhatsApp alerts on anomalies
 
-- Glucometer (Accu-Chek, OneTouch BLE models)
-  → Blood sugar readings auto-logged to timeline
-  → Alert family if > 200 mg/dL or < 70 mg/dL
-  → Emergency alert if < 50 mg/dL
-
-- BP Monitor (Omron BLE models)
-  → Systolic, diastolic, pulse auto-logged
-  → Alert if systolic > 140 mmHg
-  → Emergency alert if systolic > 180 mmHg
-
-- Pulse Oximeter (any BLE fingertip model)
-  → SpO2 + heart rate auto-logged
-  → Alert if SpO2 < 94%
-  → Emergency alert if SpO2 < 90%
-
-Integration approach:
-  Mobile app reads devices via Bluetooth Low Energy
-  Node-RED on Raspberry Pi for always-on monitoring
-  All readings stored in health_readings table
-  n8n triggers WhatsApp alerts on anomalies
-
-#### 4.2 Geofencing for Dementia Patient Safety
-Real-time location monitoring for elderly patients
-with dementia or Alzheimer's disease.
-
-Context:
-  5.3 million dementia patients in India (2020)
-  Most cared for at home with no affordable
-  monitoring solution — significant unmet need
-
-How it works:
-  Family defines safe zone on map
-  Patient carries GPS tracker (Jio Tracker ~₹1,999)
-  or wears GPS-enabled smartwatch
-  Node-RED checks location every 5 minutes
-  If patient exits safe zone:
-    → Immediate WhatsApp alert to ALL family members
-    → Alert includes Google Maps link to last location
-    → Alert logged in FamilyCare dashboard
-    → Escalating alerts if not acknowledged
+4.2 Geofencing for Dementia Patient Safety
+    GPS tracker → safe zone boundary check every 5 min
+    → WhatsApp alert to all family members on exit
 
 ---
 
@@ -178,8 +142,8 @@ How it works:
 - Styling: Tailwind CSS
 - UI Components: shadcn/ui (Nova preset — Radix + Lucide + Geist)
 - Database: Supabase (PostgreSQL) with Row Level Security
-- Auth: Supabase Auth — OTP based
-  - Development: Email OTP — check Inbucket at localhost:54324
+- Auth: Supabase Auth — Email OTP
+  - Development: Email OTP → check Inbucket at localhost:54324
   - Production: Email OTP (confirm email OFF, OTP ON in Supabase)
 - Icons: Lucide React
 - Forms: React Hook Form + Zod
@@ -190,23 +154,23 @@ How it works:
 
 ## Project Structure
 familycare-app/
-├── CLAUDE.md                    ← you are here
+├── CLAUDE.md
 ├── middleware.ts                ← auth session management
 ├── src/
 │   ├── app/
-│   │   ├── (auth)/              ← unauthenticated screens
+│   │   ├── (auth)/
 │   │   │   ├── login/           ← email entry + OTP
 │   │   │   ├── verify/          ← OTP verification
 │   │   │   └── onboarding/      ← new user setup (2 steps)
-│   │   └── (dashboard)/         ← authenticated screens
+│   │   └── (dashboard)/
 │   │       ├── dashboard/       ← command centre dashboard
 │   │       ├── family/          ← family member list
 │   │       ├── members/         ← add member
 │   │       ├── members/[id]/    ← individual member profile
 │   │       ├── documents/       ← document vault
-│   │       ├── documents/upload/ ← upload flow
-│   │       ├── medications/     ← medication tracker
-│   │       ├── medications/add/ ← add medication
+│   │       ├── documents/upload/
+│   │       ├── medications/
+│   │       ├── medications/add/
 │   │       ├── timeline/        ← medical event timeline
 │   │       ├── share/           ← secure share links
 │   │       └── visits/          ← unified doctor visit flow
@@ -215,21 +179,21 @@ familycare-app/
 │   │   ├── layout/              ← navigation, sidebar, header
 │   │   ├── dashboard/           ← dashboard sections + FAB
 │   │   ├── visits/              ← LogVisitSheet (5-step)
-│   │   ├── members/             ← family member components
-│   │   ├── documents/           ← document vault components
-│   │   ├── medications/         ← medication tracker components
-│   │   └── conditions/          ← medical condition components
+│   │   ├── members/
+│   │   ├── documents/
+│   │   ├── medications/
+│   │   └── conditions/
 │   ├── hooks/
-│   │   └── useDashboardData.ts  ← dashboard data fetching hook
+│   │   └── useDashboardData.ts
 │   ├── lib/
 │   │   ├── supabase/
-│   │   │   ├── client.ts        ← browser client
-│   │   │   ├── server.ts        ← server client
-│   │   │   └── middleware.ts    ← session updater
-│   │   ├── user.ts              ← user profile helpers
-│   │   └── onboarding.ts        ← onboarding data functions
+│   │   │   ├── client.ts
+│   │   │   ├── server.ts
+│   │   │   └── middleware.ts
+│   │   ├── user.ts
+│   │   └── onboarding.ts
 │   └── types/
-│       └── database.ts          ← TypeScript types for all DB tables
+│       └── database.ts
 
 ---
 
@@ -241,7 +205,7 @@ All tables have RLS enabled. Users only see their own family data.
 | users | Authenticated users, supabase_auth_id FK to auth |
 | family_groups | One per user, group_name column |
 | family_members | Each person — full_name column (not name) |
-| icd10_conditions | Reference — 84 curated conditions for India |
+| icd10_conditions | 84 curated conditions for India |
 | medical_conditions | Diagnosed conditions per family member |
 | condition_consultations | Doctor visits linked to conditions |
 | documents | Prescriptions, reports, scans |
@@ -252,20 +216,25 @@ All tables have RLS enabled. Users only see their own family data.
 | interest_signals | Phase 2 seed — second opinion interest |
 
 ## Critical Column Names — Do Not Confuse
-- family_members.full_name (NOT name)
-- family_groups.group_name (NOT name)
-- users.supabase_auth_id (FK to auth.users.id)
-- users.id (internal PK — different from auth uuid)
-- medications.name (NOT medication_name)
-- medications.frequency CHECK constraint:
+- family_members.full_name  (NOT name)
+- family_groups.group_name  (NOT name)
+- medications.name          (NOT medication_name)
+- users.supabase_auth_id    (FK to auth.users.id)
+- users.id                  (internal PK — different from auth uuid)
+
+## Critical CHECK Constraints — Values Must Match Exactly
+medications.frequency — ALL LOWERCASE:
   'once daily' | 'twice daily' | 'three times daily' |
   'four times daily' | 'every alternate day' |
   'weekly' | 'as needed' | 'other'
-  ALL LOWERCASE — must match exactly
-- condition_consultations.consultation_type CHECK constraint:
+
+condition_consultations.consultation_type — ALL LOWERCASE:
   'visit' | 'surgery' | 'test' | 'vaccination' |
   'hospitalization' | 'therapy' | 'other'
-  Note: 'hospitalization' uses American spelling (z not s)
+  Note: American spelling — hospitalization (z not s)
+
+medical_conditions.status — ALL LOWERCASE:
+  'active' | 'resolved' | 'chronic' | 'monitoring'
 
 ## Database Helper Functions
 - has_completed_onboarding(user_auth_id) → boolean
@@ -280,47 +249,47 @@ All tables have RLS enabled. Users only see their own family data.
 
 ## Auth Flow
 User enters email
-→
+↓
 OTP sent → verify page
-→
+↓
 Supabase Auth creates auth.users row
-→
+↓
 DB trigger (handle_new_user) auto-creates:
 → public.users record (supabase_auth_id = auth uuid)
 → public.family_groups record (owner_id = public.users.id)
-→
+↓
 has_completed_onboarding() checked
-→
+↓
 false → /onboarding    true → /dashboard
-→
+↓
 Step 1: Full name, mobile, city, state
 Step 2: DOB, gender, blood group, height, weight
-→
+↓
 family_members record created (relation=self, is_primary=true)
-→
+↓
 /dashboard
 
 ## CRITICAL: User ID Mapping
-auth.users.id       → Supabase auth UUID (from session)
-public.users.id     → Internal PK (different UUID)
+auth.users.id                 ← Supabase auth UUID (from session)
+public.users.id               ← Internal PK (different UUID)
 public.users.supabase_auth_id = auth.users.id
 
-Always look up public.users by supabase_auth_id, then use
-public.users.id for all other table joins. Never use auth uuid
-directly against family_groups.owner_id or other public tables.
+Always look up public.users WHERE supabase_auth_id = auth uuid,
+then use public.users.id for all other table joins.
+Never use auth uuid directly against family_groups.owner_id
+or any other public schema table.
 
 ---
 
-## Supabase Auth Settings — Must Verify After Every Deploy
+## Supabase Auth Settings — Verify After Every Deploy
 Go to: Authentication → Sign In / Providers
 
   ✅ Enable Email provider     ON
-  ✅ Confirm email             OFF  ← resets after db push, check every time
+  ❌ Confirm email             OFF  ← resets after db push, always check
   ✅ Email OTP                 ON
      OTP Expiry:               600 seconds
 
 Go to: Authentication → URL Configuration
-
   Site URL:      https://familycare-app-ten.vercel.app
   Redirect URLs: https://familycare-app-ten.vercel.app/**
 
@@ -340,13 +309,14 @@ NEXT_PUBLIC_APP_ENV            development | staging | production
 
 ### Branch Structure
 main       ← production only, protected, NEVER push directly
-staging    ← pre-release testing, maps to Vercel staging preview
+staging    ← pre-release testing
 dev        ← active development base, default branch
 feature/   ← one branch per feature or fix
 hotfix/    ← urgent production fixes only
 
 ### MANDATORY Development Flow — Follow Every Time
-Claude Code MUST follow this exact sequence for every change:
+Claude Code MUST follow this exact sequence for every change.
+Never skip steps. Never push directly to staging or main.
 
 Step 1 — Create feature branch from dev
   git checkout dev
@@ -357,137 +327,126 @@ Step 1 — Create feature branch from dev
 Step 2 — Build and test locally
   npm run dev
   Test at localhost:3000
-  npm run build (must pass with zero errors)
+  npm run build   ← must pass with zero errors before proceeding
 
-Step 3 — Commit with correct convention
+Step 3 — Commit
   git add .
   git commit -m "[type]: description"
   git push origin feature/ph[N]-description
 
-Step 4 — Merge to dev
+Step 4 — Merge feature → dev
   git checkout dev
   git pull origin dev
   git merge feature/ph[N]-description --no-ff \
     -m "merge: feature/ph[N]-description into dev"
   git push origin dev
 
-Step 5 — Merge dev to staging
+Step 5 — Merge dev → staging
   git checkout staging
   git pull origin staging
-  git merge dev --no-ff -m "merge: dev into staging — [description]"
+  git merge dev --no-ff \
+    -m "merge: dev into staging — [description]"
   git push origin staging
-  Verify on Vercel staging preview URL
+  Verify on Vercel staging preview URL before proceeding
 
-Step 6 — Merge staging to main (production)
+Step 6 — Merge staging → main (production)
   ONLY after staging verification passes
   git checkout main
   git pull origin main
-  git merge staging --no-ff -m "release: [version] — [description]"
+  git merge staging --no-ff \
+    -m "release: [version] — [description]"
   git push origin main
   git tag -a v[X.Y.Z] -m "[release description]"
   git push origin v[X.Y.Z]
 
 ### Hotfix Flow (urgent production bugs only)
-  git checkout dev
-  git pull origin dev
+  git checkout dev && git pull origin dev
   git checkout -b hotfix/description
   [fix the bug]
   git commit -m "fix: description"
   git push origin hotfix/description
-  Merge hotfix → dev → staging → main (same steps as above)
+  Then follow same merge sequence: hotfix → dev → staging → main
 
-### Branch Naming Convention
+### Branch Naming
 feature/ph1-dashboard-redesign
-feature/ph1-doctor-visit-flow
 feature/ph2-specialist-listing
 hotfix/ph1-mobile-logout
 
-### Commit Message Convention
-feat:      new feature or screen
+### Commit Convention
+feat:      new feature
 fix:       bug fix
 hotfix:    urgent production fix
-chore:     setup, config, dependencies
-docs:      documentation updates
-style:     UI/styling changes only
-refactor:  code restructure, no feature change
-schema:    database migration changes
-merge:     branch merge commits
+chore:     config, dependencies
+docs:      documentation
+style:     UI/styling only
+refactor:  restructure, no behaviour change
+schema:    database migration
+merge:     branch merge
 release:   production release
 
 ### NEVER Do These
 - Never push directly to main or staging
 - Never skip the dev → staging → main sequence
-- Never merge without npm run build passing
-- Never use $vars. references in n8n (not available on free plan)
-- Never hardcode staging credentials in production workflows
+- Never merge without npm run build passing with zero errors
+- Never use $vars. in n8n (Enterprise feature, not available)
+- Never hardcode staging credentials in production configs
 
 ---
 
 ## Key Design Decisions — Do Not Change Without Discussion
-- Soft deletes everywhere — use deleted_at, never hard delete rows
+- Soft deletes everywhere — deleted_at, never hard delete
 - RLS on every table — never bypass with service role in frontend
-- ICD-10 structured tagging — always link conditions to icd10_conditions
-- Phase 2 seeds — second_opinion_requested and phase2_ready columns
-  exist now and must be set correctly even in Phase 1
-- Indian mobile numbers only — always prefix +91
+- ICD-10 structured tagging — always link to icd10_conditions
+- Phase 2 seeds — second_opinion_requested and phase2_ready
+  must be set correctly even in Phase 1
+- Indian mobile numbers — always prefix +91
 - Tailwind + shadcn/ui only — no other CSS frameworks
-- No direct DB schema changes — all changes via migration files
-  in the familycare repo
-- family_members.full_name — always use full_name, never name
-- frequency values — always lowercase to match DB CHECK constraint
-- reminder_enabled — defaults to true (opt-out model, not opt-in)
-- Mobile-first — test at 375px width before desktop
+- No direct DB schema changes — migration files in familycare repo only
+- family_members.full_name — always full_name, never name
+- medications.frequency — always lowercase to match CHECK constraint
+- reminder_enabled — defaults to true (opt-out, not opt-in)
+- Mobile-first — always test at 375px before desktop
 
 ---
 
 ## Post-Deployment Checklist
 Run after every push to staging or production:
 
-### Supabase Auth (check after every db push — settings reset)
-  ✅ Confirm email     must be OFF
+### Supabase Auth
+  ❌ Confirm email     must be OFF (resets to ON after db push)
   ✅ Email OTP         must be ON
   ✅ Site URL          https://familycare-app-ten.vercel.app
 
 ### New User Signup Test
-  ⚡ Fresh email → OTP received (not confirmation link)
-  ⚡ Onboarding Step 1 completes
-  ⚡ Onboarding Step 2 → no "Family group not found" error
-  ⚡ Dashboard loads correctly
+  □ Fresh email → 6-digit OTP received (not a confirmation link)
+  □ Onboarding Step 1 completes without error
+  □ Onboarding Step 2 — no "Family group not found" error
+  □ Dashboard loads correctly after onboarding
 
 ### Vercel Deployment
-  ⚡ Deployment status green in Vercel dashboard
-  ⚡ No build errors in deployment logs
+  □ Deployment status green in Vercel dashboard
+  □ No TypeScript or build errors in deployment logs
 
-### n8n Workflows
-  ⚡ WF1 Active toggle ON
-  ⚡ WF2 Active toggle ON
-  ⚡ WF4 Active toggle ON
-  ⚡ WF5 Active toggle ON
+### n8n Workflows (production)
+  □ WF1 Active toggle ON
+  □ WF2 Active toggle ON
+  □ WF4 Active toggle ON
+  □ WF5 Active toggle ON
 
 ---
 
-## Planned UX Enhancements — Phase 1 (Not Yet Built)
+## Planned — Phase 1 (Not Yet Built)
 
-### 1. AI Document Extraction (Scan to Auto-Fill)
-When to build: During or after Document Vault feature
-How it works:
-- User uploads a prescription or report
-- Button appears: "Extract details with AI"
-- Calls Claude API (claude-sonnet-4-20250514) with uploaded image/PDF
-- Claude extracts structured data and pre-fills the Add Condition form
-- User reviews all extracted fields before saving — never auto-save
+### AI Document Extraction
+When to build: alongside or after Document Vault
+How: Claude API (claude-sonnet-4-20250514) reads uploaded
+image/PDF → extracts doctor name, condition, medications, date
+→ pre-fills Add Condition form → user reviews before saving
+Never auto-save extracted data.
 
-Fields extractable:
-- Doctor name → diagnosed_by in medical_conditions
-- Hospital/Clinic → hospital_name in documents
-- Date of visit → diagnosed_on in medical_conditions
-- Condition/diagnosis → matched to icd10_conditions or custom_name
-- Medications → pre-fills medication name, dosage
-- Notes → notes field
-
-### 2. WF7 — Interest Signal Tracker
-Status: Deferred — needs a new MSG91 digest template
-Current template (familycare_share_link) is not suitable for
-founder digest use case. Create a new WhatsApp template first.
+### WF7 — Interest Signal Tracker
+Status: Deferred — needs a new MSG91 WhatsApp template
+Current familycare_share_link template variables do not suit
+a founder digest. Create new template first.
 Recipient: founder mobile 9810652710
 Purpose: daily digest of second opinion interest signals
