@@ -333,7 +333,7 @@ export function TimelineView({
 
       {/* ── Month drill-down ── */}
       {!loading && selectedYear !== null && (
-        <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+        <div className="rounded-xl border border-gray-300 bg-white shadow-sm mb-4 overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
             <p className="text-sm font-medium">{selectedYear} — month by month</p>
             <button
@@ -421,7 +421,7 @@ export function TimelineView({
               </button>
               <div className="mt-2 w-2.5 h-2.5 rounded-full bg-teal-500 shrink-0" />
               {!isLastYear && (
-                <div className="flex-1 w-px bg-gray-200 mt-1 min-h-[16px]" />
+                <div className="flex-1 w-px bg-gray-200 mt-1 min-h-[60px]" />
               )}
             </div>
 
