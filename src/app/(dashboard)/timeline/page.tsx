@@ -10,9 +10,9 @@ export default async function TimelinePage() {
   return (
     <div className="p-4 md:p-6 max-w-2xl mx-auto">
       <div className="mb-5">
-        <h1 className="font-heading text-xl font-semibold">Health Timeline</h1>
+        <h1 className="font-heading text-xl font-semibold">Health timeline</h1>
         <p className="text-sm text-muted-foreground mt-0.5">
-          Complete health history — auto-generated
+          Complete health history · auto-generated
         </p>
       </div>
 
