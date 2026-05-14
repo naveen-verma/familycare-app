@@ -109,8 +109,9 @@ export function FamilyHealthTabs({ members, onAddMember }: Props) {
       .map(c => new Date(c.diagnosed_on!).getFullYear())
   )
   const diagYears = Array.from(yearsWithEvents)
-  // Fall back to last 4 years so timeline always renders even with no dates
-  const firstYear = diagYears.length > 0 ? Math.min(...diagYears) : currentYear - 3
+  const earliestEventYear = diagYears.length > 0 ? Math.min(...diagYears) : currentYear - 3
+  // Cap to last 8 years — older history is visible on the full profile page
+  const firstYear = Math.max(earliestEventYear, currentYear - 7)
   const timelineYears = Array.from(
     { length: currentYear - firstYear + 1 },
     (_, i) => firstYear + i
@@ -128,31 +129,29 @@ export function FamilyHealthTabs({ members, onAddMember }: Props) {
       </div>
 
       {/* ── Card ── */}
-      <div className="rounded-xl border bg-white overflow-hidden">
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
 
         {/* ── Tab bar — grey bg to separate from white content (Change 1) ── */}
-        <div
-          className="flex overflow-x-auto border-b border-gray-200 bg-gray-50 px-4"
-          style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
-        >
+        <div className="flex overflow-x-auto bg-gray-50 border-b border-gray-200 px-4 pt-3 gap-1">
           {members.map((member, i) => {
-            const tabColor = AVATAR_COLORS[i % AVATAR_COLORS.length]
             const isActive = i === safeIndex
             return (
               <button
                 key={member.id}
                 onClick={() => setActiveIndex(i)}
-                className={`flex flex-col items-center gap-1.5 py-3 px-3 min-w-[72px] shrink-0 border-b-2 transition-colors ${
-                  isActive ? 'border-teal-500' : 'border-transparent'
+                className={`flex flex-col items-center gap-1.5 px-3 pb-2.5 border-b-2 flex-shrink-0 transition-colors ${
+                  isActive ? 'border-teal-600' : 'border-transparent'
                 }`}
               >
                 <div
-                  className="size-10 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                  style={{ backgroundColor: tabColor }}
+                  className="w-10 h-10 rounded-full flex items-center justify-center text-white text-xs font-medium"
+                  style={{ background: AVATAR_COLORS[i % AVATAR_COLORS.length] }}
                 >
                   {getInitials(member.name)}
                 </div>
-                <span className="text-[11px] font-medium truncate max-w-[64px] text-center leading-tight">
+                <span className={`text-[11px] font-medium whitespace-nowrap ${
+                  isActive ? 'text-teal-600' : 'text-gray-400'
+                }`}>
                   {member.name.split(' ')[0]}
                 </span>
               </button>
@@ -313,7 +312,7 @@ export function FamilyHealthTabs({ members, onAddMember }: Props) {
         </div>
 
         {/* ── Footer — single "View full profile" link (Change 4) ── */}
-        <div className="border-t border-gray-200 px-4 py-2.5 text-center">
+        <div className="border-t border-gray-100 py-2.5 text-center">
           <Link
             href={`/members/${m.id}`}
             className="text-xs font-medium text-teal-600 hover:underline"
