@@ -12,8 +12,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DashboardClient } from './DashboardClient'
-import type { MemberSnapshot } from '@/components/dashboard/FamilyHealthSnapshot'
-import type { ActivityItem } from '@/components/dashboard/RecentActivityFeed'
+import type { FamilyMemberSummary } from '@/components/dashboard/FamilyHealthTabs'
 
 function fmtDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-IN', {
@@ -118,8 +117,7 @@ export default async function DashboardPage() {
     { data: expiringRaw },
     { data: criticalRaw },
     { data: medsRaw },
-    { data: recentDocsRaw },
-    { data: recentCondRaw },
+    { data: allDocMembersRaw },
   ] = await Promise.all([
     // Overdue follow-ups
     supabase
@@ -166,25 +164,12 @@ export default async function DashboardPage() {
       .is('deleted_at', null)
       .order('name'),
 
-    // Recent documents (activity feed + last-per-member)
+    // Document member IDs for per-member count
     supabase
       .from('documents')
-      .select('id, title, family_member_id, created_at, family_members(full_name)')
+      .select('family_member_id')
       .in('family_member_id', memberIds)
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false })
-      .limit(10),
-
-    // Recent conditions added (activity feed)
-    supabase
-      .from('medical_conditions')
-      .select(
-        'id, custom_name, family_member_id, created_at, family_members(full_name), icd10_conditions(common_name)'
-      )
-      .in('family_member_id', memberIds)
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false })
-      .limit(5),
+      .is('deleted_at', null),
   ])
 
   // Phase 3: owner-only interest signals count
@@ -246,48 +231,41 @@ export default async function DashboardPage() {
     medCountByMember[mid] = (medCountByMember[mid] ?? 0) + 1
   }
 
-  // ── Last document per member ────────────────────────────────────────────────
+  // ── Document count per member ───────────────────────────────────────────────
 
-  const lastDocByMember: Record<string, string> = {}
-  for (const doc of recentDocsRaw ?? []) {
+  const docCountByMember: Record<string, number> = {}
+  for (const doc of allDocMembersRaw ?? []) {
     const mid = r(doc).family_member_id as string
-    if (!lastDocByMember[mid]) lastDocByMember[mid] = r(doc).created_at
+    docCountByMember[mid] = (docCountByMember[mid] ?? 0) + 1
   }
 
-  // ── Activity feed ───────────────────────────────────────────────────────────
+  // ── Family member summaries for FamilyHealthTabs ────────────────────────────
 
-  const activityItems: ActivityItem[] = [
-    ...(recentDocsRaw ?? []).slice(0, 5).map((d) => ({
-      key: `doc-${d.id}`,
-      type: 'document' as const,
-      description: `${r(d).title} uploaded`,
-      memberName: r(d).family_members?.full_name ?? '—',
-      createdAt: r(d).created_at,
-    })),
-    ...(recentCondRaw ?? []).map((c) => ({
-      key: `cond-${c.id}`,
-      type: 'condition' as const,
-      description: `${r(c).icd10_conditions?.common_name ?? r(c).custom_name ?? 'Condition'} added`,
-      memberName: r(c).family_members?.full_name ?? '—',
-      createdAt: r(c).created_at,
-    })),
-  ]
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 5)
-
-  // ── Member snapshots for DashboardClient ───────────────────────────────────
-
-  const memberSnapshots: MemberSnapshot[] = members.map((m) => ({
-    id: m.id,
-    full_name: m.full_name,
-    relation: m.relation,
-    dateOfBirth: m.date_of_birth,
-    conditionCount: m.medical_conditions.filter(
-      (c) => (c.status === 'active' || c.status === 'chronic') && !c.deleted_at
-    ).length,
-    medCount: medCountByMember[m.id] ?? 0,
-    hasDoc: !!lastDocByMember[m.id],
-  }))
+  const familyMemberSummaries: FamilyMemberSummary[] = members.map((m) => {
+    const activeConditions = m.medical_conditions.filter(
+      (c) => !c.deleted_at && ['active', 'chronic', 'monitoring'].includes(c.status)
+    )
+    return {
+      id: m.id,
+      name: m.full_name,
+      relation: m.relation,
+      date_of_birth: m.date_of_birth,
+      blood_group: m.blood_group,
+      gender: m.gender,
+      is_primary: m.is_primary,
+      conditions_count: m.medical_conditions.filter(c => !c.deleted_at).length,
+      active_conditions_count: activeConditions.length,
+      medications_count: medCountByMember[m.id] ?? 0,
+      documents_count: docCountByMember[m.id] ?? 0,
+      conditions: activeConditions.slice(0, 3).map(c => ({
+        id: c.id,
+        condition_name: c.icd10_conditions?.common_name ?? c.custom_name ?? 'Unknown',
+        status: c.status,
+        diagnosed_on: c.diagnosed_on,
+      })),
+      last_event_date: null,
+    }
+  })
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -424,10 +402,9 @@ export default async function DashboardPage() {
         </section>
       )}
 
-      {/* ── Sections 3–6: Family Snapshot, Activity, Second Opinion, Quick Actions ── */}
+      {/* ── Sections 3–5: Family Health, Second Opinion, Quick Actions ── */}
       <DashboardClient
-        memberSnapshots={memberSnapshots}
-        activityItems={activityItems}
+        familyMembers={familyMemberSummaries}
         isOwner={isOwner}
         pendingSignalsCount={pendingSignalsCount}
       />
