@@ -27,7 +27,6 @@ import {
   RulerIcon,
   ScaleIcon,
   ShareIcon,
-  AlertTriangleIcon,
   ActivityIcon,
   Pill,
 } from 'lucide-react'
@@ -61,7 +60,7 @@ function formatDate(dateStr: string): string {
 const CONSULTATION_TYPE_BADGE: Record<string, { label: string; badge: string }> = {
   visit:           { label: 'Visit',           badge: 'bg-blue-100 text-blue-700' },
   surgery:         { label: 'Surgery',         badge: 'bg-red-100 text-red-700' },
-  test:            { label: 'Test / Checkup',  badge: 'bg-purple-100 text-purple-700' },
+  test:            { label: 'Test',            badge: 'bg-purple-100 text-purple-700' },
   vaccination:     { label: 'Vaccination',     badge: 'bg-green-100 text-green-700' },
   hospitalization: { label: 'Hospitalization', badge: 'bg-orange-100 text-orange-700' },
   therapy:         { label: 'Therapy',         badge: 'bg-teal-100 text-teal-700' },
@@ -303,8 +302,10 @@ export default async function MemberProfilePage({
                                   condition.custom_name}
                               </span>
                               {condition.icd10_conditions?.is_critical && (
-                                <span className="inline-flex items-center gap-0.5 text-xs text-red-600 font-medium">
-                                  <AlertTriangleIcon className="size-3" />
+                                <span
+                                  className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium"
+                                  style={{ backgroundColor: '#FCEBEB', color: '#791F1F' }}
+                                >
                                   Critical
                                 </span>
                               )}
