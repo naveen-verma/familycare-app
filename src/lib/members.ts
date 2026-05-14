@@ -15,6 +15,7 @@ export type MemberWithConditions = {
     id: string
     status: string
     custom_name: string | null
+    diagnosed_on: string | null
     deleted_at: string | null
     icd10_conditions: { name: string; common_name: string | null } | null
   }>
@@ -29,7 +30,7 @@ export async function getFamilyMembers(): Promise<MemberWithConditions[]> {
       id, full_name, date_of_birth, gender, blood_group, relation,
       mobile, is_primary, profile_photo_url, created_at,
       medical_conditions(
-        id, status, custom_name, deleted_at,
+        id, status, custom_name, diagnosed_on, deleted_at,
         icd10_conditions(name, common_name)
       )
     `)

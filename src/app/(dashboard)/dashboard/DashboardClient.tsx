@@ -3,39 +3,38 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { ChevronRight, MicroscopeIcon } from 'lucide-react'
-import { FamilyHealthSnapshot, type MemberSnapshot } from '@/components/dashboard/FamilyHealthSnapshot'
-import { RecentActivityFeed, type ActivityItem } from '@/components/dashboard/RecentActivityFeed'
+import { FamilyHealthTabs, type FamilyMemberSummary } from '@/components/dashboard/FamilyHealthTabs'
 import { QuickActionsBar } from '@/components/dashboard/QuickActionsBar'
 import { AddMemberDialog } from '@/components/members/AddMemberDialog'
 import { DoctorVisitFAB } from '@/components/dashboard/DoctorVisitFAB'
 import { useRouter } from 'next/navigation'
 
 interface DashboardClientProps {
-  memberSnapshots: MemberSnapshot[]
-  activityItems: ActivityItem[]
+  familyMembers: FamilyMemberSummary[]
   isOwner: boolean
   pendingSignalsCount: number
 }
 
 export function DashboardClient({
-  memberSnapshots,
-  activityItems,
+  familyMembers,
   isOwner,
   pendingSignalsCount,
 }: DashboardClientProps) {
   const [showAddMember, setShowAddMember] = useState(false)
   const router = useRouter()
 
-  const memberSummaries = memberSnapshots.map((m) => ({
+  const memberSummaries = familyMembers.map((m) => ({
     id: m.id,
-    full_name: m.full_name,
+    full_name: m.name,
     relation: m.relation,
   }))
 
   return (
     <>
-      <FamilyHealthSnapshot snapshots={memberSnapshots} />
-      <RecentActivityFeed items={activityItems} />
+      <FamilyHealthTabs
+        members={familyMembers}
+        onAddMember={() => setShowAddMember(true)}
+      />
       {isOwner && pendingSignalsCount > 0 && (
         <section>
           <div className="flex items-center gap-3 rounded-xl border border-indigo-100 bg-indigo-50 p-4">
