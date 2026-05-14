@@ -31,6 +31,10 @@ export function SecondOpinionButton({
   const [loading, setLoading] = useState(false)
   const [interestLogged, setInterestLogged] = useState(secondOpinionRequested)
 
+  // Phase 2 — Second Opinion Engine not yet live
+  const PHASE2_ENABLED = false
+  if (!PHASE2_ENABLED) return null
+
   async function handleNotifyMe() {
     setLoading(true)
     try {

@@ -257,7 +257,8 @@ export default async function MemberProfilePage({
       {/* Accordion sections */}
       <Accordion type="multiple" defaultValue={['conditions']}>
         {/* Conditions section */}
-        <AccordionItem value="conditions" className="border rounded-xl mb-3 px-4 overflow-hidden">
+        <div className="border border-gray-200 rounded-xl mb-3 overflow-hidden">
+        <AccordionItem value="conditions" className="border-0 px-4">
           <AccordionTrigger className="hover:no-underline">
             <div className="flex items-center">
               <span className="font-medium text-sm">Medical Conditions</span>
@@ -402,9 +403,11 @@ export default async function MemberProfilePage({
             )}
           </AccordionContent>
         </AccordionItem>
+        </div>
 
         {/* Medications section */}
-        <AccordionItem value="medications" className="border rounded-xl px-4 overflow-hidden">
+        <div className="border border-gray-200 rounded-xl overflow-hidden">
+        <AccordionItem value="medications" className="border-0 px-4">
           <AccordionTrigger className="hover:no-underline">
             <div className="flex items-center">
               <span className="font-medium text-sm">Medications</span>
@@ -471,6 +474,7 @@ export default async function MemberProfilePage({
             )}
           </AccordionContent>
         </AccordionItem>
+        </div>
       </Accordion>
     </div>
   )
