@@ -424,16 +424,7 @@ export default async function MemberProfilePage({
                 <p className="text-sm text-gray-400">No medications recorded</p>
               </div>
             ) : (
-              <>
-                <div className="flex justify-end mb-3">
-                  <Link
-                    href={`/medications/add?memberId=${id}`}
-                    className="inline-flex items-center gap-1.5 text-xs font-medium text-teal-700 border border-teal-600 rounded-lg px-3 py-1.5 hover:bg-teal-50 transition-colors"
-                  >
-                    Add Medication
-                  </Link>
-                </div>
-                <div className="space-y-2">
+              <div className="space-y-2">
                   {medications.map((med) => {
                     const active = isMedicationActive(med)
                     const dosageFreq = [
@@ -471,7 +462,6 @@ export default async function MemberProfilePage({
                     )
                   })}
                 </div>
-              </>
             )}
           </AccordionContent>
         </AccordionItem>
