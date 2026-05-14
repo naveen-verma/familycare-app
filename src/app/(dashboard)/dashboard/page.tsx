@@ -146,6 +146,8 @@ export default async function DashboardPage() {
       )
       .in('family_member_id', memberIds)
       .eq('is_active', true)
+      .or('end_date.is.null,end_date.gte.' + today)
+      .or('start_date.is.null,start_date.lte.' + today)
       .is('deleted_at', null)
       .order('name'),
 
