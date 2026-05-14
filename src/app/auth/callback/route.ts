@@ -6,7 +6,9 @@ import type { NextRequest } from 'next/server'
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
-  const origin = requestUrl.origin
+  const origin = requestUrl.origin ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    'https://familycare-app-ten.vercel.app'
 
   if (code) {
     const cookieStore = await cookies()
@@ -28,7 +30,7 @@ export async function GET(request: NextRequest) {
     if (!error) {
       // Middleware will check has_completed_onboarding() and redirect
       // to /onboarding for new users or keep on /dashboard for existing
-      return NextResponse.redirect(`${origin}/dashboard`)
+      return NextResponse.redirect(`${requestUrl.origin}/dashboard`)
     }
   }
 
