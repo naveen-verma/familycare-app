@@ -109,7 +109,8 @@ export function FamilyHealthTabs({ members, onAddMember }: Props) {
       .map(c => new Date(c.diagnosed_on!).getFullYear())
   )
   const diagYears = Array.from(yearsWithEvents)
-  const firstYear = diagYears.length > 0 ? Math.min(...diagYears) : currentYear
+  // Fall back to last 4 years so timeline always renders even with no dates
+  const firstYear = diagYears.length > 0 ? Math.min(...diagYears) : currentYear - 3
   const timelineYears = Array.from(
     { length: currentYear - firstYear + 1 },
     (_, i) => firstYear + i
@@ -131,7 +132,7 @@ export function FamilyHealthTabs({ members, onAddMember }: Props) {
 
         {/* ── Tab bar — grey bg to separate from white content (Change 1) ── */}
         <div
-          className="flex overflow-x-auto border-b border-border bg-gray-50 px-2"
+          className="flex overflow-x-auto border-b border-gray-200 bg-gray-50 px-4"
           style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
         >
           {members.map((member, i) => {
@@ -248,9 +249,8 @@ export function FamilyHealthTabs({ members, onAddMember }: Props) {
             )}
           </div>
 
-          {/* 4. Mini health timeline (Changes 3 & 5) */}
-          {timelineYears.length > 1 && (
-            <div>
+          {/* 4. Mini health timeline */}
+          <div>
               <p className={sectionLabel}>Health timeline</p>
               <div
                 className="overflow-x-auto -mx-4 px-4"
@@ -290,7 +290,13 @@ export function FamilyHealthTabs({ members, onAddMember }: Props) {
                         <div className="flex items-center w-full">
                           <div className={`flex-1 h-px ${leftSegCls}`} />
                           <div
-                            className={`size-3 rounded-full shrink-0 ${hasEvent ? 'bg-teal-500' : 'bg-gray-200'}`}
+                            className={`size-3 rounded-full shrink-0 ${
+                              hasEvent
+                                ? 'bg-teal-500'
+                                : isCurrentYear
+                                  ? 'bg-amber-400'
+                                  : 'bg-gray-200'
+                            }`}
                           />
                           <div className={`flex-1 h-px ${rightSegCls}`} />
                         </div>
@@ -302,13 +308,12 @@ export function FamilyHealthTabs({ members, onAddMember }: Props) {
                   })}
                 </div>
               </div>
-            </div>
-          )}
+          </div>
 
         </div>
 
         {/* ── Footer — single "View full profile" link (Change 4) ── */}
-        <div className="border-t border-border px-4 py-2.5 text-center">
+        <div className="border-t border-gray-200 px-4 py-2.5 text-center">
           <Link
             href={`/members/${m.id}`}
             className="text-xs font-medium text-teal-600 hover:underline"
