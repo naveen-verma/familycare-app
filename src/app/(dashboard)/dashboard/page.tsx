@@ -40,14 +40,20 @@ export default async function DashboardPage() {
   const rawName = profile?.full_name?.trim()
   let firstName: string
   if (rawName && rawName !== 'New User') {
-    firstName = rawName.split(' ')[0]
+    const first = rawName.split(' ')[0]
+    firstName = first.charAt(0).toUpperCase() + first.slice(1)
   } else {
     const metaName = (
       authUser?.user_metadata?.full_name ||
       authUser?.user_metadata?.name ||
       ''
     ).trim()
-    firstName = metaName ? metaName.split(' ')[0] : 'there'
+    if (metaName) {
+      const first = metaName.split(' ')[0]
+      firstName = first.charAt(0).toUpperCase() + first.slice(1)
+    } else {
+      firstName = 'there'
+    }
   }
 
   // Greeting based on IST (Indian users)
