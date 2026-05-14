@@ -136,10 +136,10 @@ export function AddConditionDialog({
       }}
     >
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
-          <PlusIcon />
-          Add Condition
-        </Button>
+        <button className="inline-flex items-center gap-1.5 text-xs font-medium text-teal-700 border border-teal-600 rounded-lg px-3 py-1.5 hover:bg-teal-50 transition-colors">
+          <PlusIcon size={13} />
+          Add condition
+        </button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
