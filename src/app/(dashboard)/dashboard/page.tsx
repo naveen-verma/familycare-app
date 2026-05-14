@@ -26,15 +26,30 @@ function fmtDate(dateStr: string): string {
 export default async function DashboardPage() {
   const supabase = await createClient()
 
-  // Phase 1: profile + members in parallel
-  const [{ data: profileData }, members] = await Promise.all([
+  // Phase 1: profile + members + auth user in parallel
+  const [{ data: profileData }, members, { data: { user: authUser } }] = await Promise.all([
     supabase.rpc('get_current_user_profile'),
     getFamilyMembers(),
+    supabase.auth.getUser(),
   ])
 
   const profile = profileData as { full_name: string; role: string } | null
-  const firstName = profile?.full_name?.split(' ')[0] ?? 'there'
   const isOwner = profile?.role === 'owner'
+
+  // Resolve first name: prefer public.users.full_name, fall back to Google
+  // metadata when the stored name is the trigger placeholder 'New User'
+  const rawName = profile?.full_name?.trim()
+  let firstName: string
+  if (rawName && rawName !== 'New User') {
+    firstName = rawName.split(' ')[0]
+  } else {
+    const metaName = (
+      authUser?.user_metadata?.full_name ||
+      authUser?.user_metadata?.name ||
+      ''
+    ).trim()
+    firstName = metaName ? metaName.split(' ')[0] : 'there'
+  }
 
   // Greeting based on IST (Indian users)
   const istHour = parseInt(
