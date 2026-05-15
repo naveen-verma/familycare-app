@@ -1,12 +1,10 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import Cropper from 'react-easy-crop'
-import type { Area } from 'react-easy-crop'
 import {
   Dialog,
   DialogContent,
@@ -25,11 +23,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { PlusIcon, ChevronRight, CameraIcon, X } from 'lucide-react'
+import { PlusIcon, ChevronRight } from 'lucide-react'
 import { addMemberAction } from '@/app/(dashboard)/members/actions'
 import { createClient } from '@/lib/supabase/client'
-import { getCroppedImg } from '@/lib/cropImage'
-import { MemberAvatar } from '@/components/members/MemberAvatar'
+import { AvatarUploader } from '@/components/members/AvatarUploader'
 
 // ---- BMI utilities (Indian WHO Asia-Pacific cutoffs) ----
 
@@ -92,46 +89,8 @@ export function AddMemberDialog({
   const router = useRouter()
 
   // Avatar states
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
-  const [avatarBlob, setAvatarBlob] = useState<Blob | null>(null)
-  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null)
-  const [crop, setCrop] = useState({ x: 0, y: 0 })
-  const [zoom, setZoom] = useState(1)
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
-  const [isCropOpen, setIsCropOpen] = useState(false)
-
-  const onCropComplete = useCallback((_: Area, pixels: Area) => {
-    setCroppedAreaPixels(pixels)
-  }, [])
-
-  function handleAvatarFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    if (file.size > 5 * 1024 * 1024) {
-      setError('Photo must be under 5MB.')
-      e.target.value = ''
-      return
-    }
-    const reader = new FileReader()
-    reader.onload = () => {
-      setCropImageSrc(reader.result as string)
-      setCrop({ x: 0, y: 0 })
-      setZoom(1)
-      setIsCropOpen(true)
-    }
-    reader.readAsDataURL(file)
-    e.target.value = ''
-  }
-
-  async function handleCropSave() {
-    if (!cropImageSrc || !croppedAreaPixels) return
-    const blob = await getCroppedImg(cropImageSrc, croppedAreaPixels)
-    setAvatarBlob(blob)
-    setAvatarPreview(URL.createObjectURL(blob))
-    setIsCropOpen(false)
-    setCropImageSrc(null)
-  }
+  const [previewAvatarUrl, setPreviewAvatarUrl] = useState<string | null>(null)
+  const [pendingAvatarBlob, setPendingAvatarBlob] = useState<Blob | null>(null)
 
   const {
     register,
@@ -139,6 +98,7 @@ export function AddMemberDialog({
     setValue,
     reset,
     trigger,
+    watch,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -161,10 +121,8 @@ export function AddMemberDialog({
       setWeightVal('')
       setError(null)
       setStep(1)
-      setAvatarPreview(null)
-      setAvatarBlob(null)
-      setCropImageSrc(null)
-      setIsCropOpen(false)
+      setPreviewAvatarUrl(null)
+      setPendingAvatarBlob(null)
     }
   }
 
@@ -196,13 +154,13 @@ export function AddMemberDialog({
       })
 
       // Upload avatar if one was selected
-      if (avatarBlob && memberId && familyGroupId) {
+      if (pendingAvatarBlob && memberId && familyGroupId) {
         try {
           const supabase = createClient()
           const path = `${familyGroupId}/${memberId}/avatar.jpg`
           await supabase.storage
             .from('member-avatars')
-            .upload(path, avatarBlob, { upsert: true, contentType: 'image/jpeg' })
+            .upload(path, pendingAvatarBlob, { upsert: true, contentType: 'image/jpeg' })
           const { data: signedData } = await supabase.storage
             .from('member-avatars')
             .createSignedUrl(path, 60 * 60 * 24 * 365)
@@ -270,34 +228,14 @@ export function AddMemberDialog({
           {step === 1 && (
             <>
               {/* Avatar picker */}
-              <div className="flex flex-col items-center gap-1.5 pb-1">
-                <div
-                  className="relative cursor-pointer"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <MemberAvatar
-                    name="?"
-                    avatarUrl={avatarPreview}
-                    size={64}
-                    colorIndex={0}
-                  />
-                  <div className="absolute bottom-0.5 right-0.5 w-5 h-5 rounded-full bg-teal-600 flex items-center justify-center">
-                    <CameraIcon className="size-3 text-white" />
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="text-xs text-teal-600 hover:underline"
-                >
-                  {avatarPreview ? 'Change photo' : 'Add photo'}
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/jpg,image/png,image/webp"
-                  className="hidden"
-                  onChange={handleAvatarFileChange}
+              <div className="flex flex-col items-center pb-1">
+                <AvatarUploader
+                  currentAvatarUrl={previewAvatarUrl}
+                  memberName={watch('full_name') || 'New member'}
+                  size={64}
+                  colorIndex={0}
+                  onSuccess={(localUrl) => setPreviewAvatarUrl(localUrl)}
+                  onCropComplete={(blob) => setPendingAvatarBlob(blob)}
                 />
               </div>
 
@@ -472,65 +410,6 @@ export function AddMemberDialog({
       </DialogContent>
     </Dialog>
 
-    {/* Inline crop modal for new member avatar */}
-    {isCropOpen && cropImageSrc && (
-      <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
-        <div className="absolute inset-0 bg-black/60" onClick={() => { setIsCropOpen(false); setCropImageSrc(null) }} />
-        <div className="relative z-10 bg-white w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl overflow-hidden shadow-xl flex flex-col max-h-[90dvh]">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
-            <p className="text-sm font-semibold">Adjust photo</p>
-            <button
-              onClick={() => { setIsCropOpen(false); setCropImageSrc(null) }}
-              className="rounded-full p-1 hover:bg-gray-100 transition-colors"
-            >
-              <X className="size-4 text-gray-500" />
-            </button>
-          </div>
-          <div className="relative w-full" style={{ height: 280 }}>
-            <Cropper
-              image={cropImageSrc}
-              crop={crop}
-              zoom={zoom}
-              aspect={1}
-              cropShape="round"
-              showGrid={false}
-              onCropChange={setCrop}
-              onZoomChange={setZoom}
-              onCropComplete={onCropComplete}
-            />
-          </div>
-          <div className="px-4 pt-3 pb-2 shrink-0">
-            <label className="text-xs text-muted-foreground block mb-1.5">Zoom</label>
-            <input
-              type="range"
-              min={1}
-              max={3}
-              step={0.01}
-              value={zoom}
-              onChange={(e) => setZoom(Number(e.target.value))}
-              className="w-full accent-teal-600"
-            />
-          </div>
-          <div className="flex gap-2 px-4 pb-4 pt-2 shrink-0">
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1"
-              onClick={() => { setIsCropOpen(false); setCropImageSrc(null) }}
-            >
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              className="flex-1 bg-teal-600 hover:bg-teal-700"
-              onClick={handleCropSave}
-            >
-              Use photo
-            </Button>
-          </div>
-        </div>
-      </div>
-    )}
-    </>
+</>
   )
 }
