@@ -4,7 +4,7 @@ import Link from 'next/link'
 
 export default async function TimelinePage() {
   const members = await getFamilyMembers()
-  const memberOptions = members.map((m) => ({ id: m.id, full_name: m.full_name }))
+  const memberOptions = members.map((m) => ({ id: m.id, full_name: m.full_name, avatar_url: m.avatar_url ?? null }))
   const initialMemberId = memberOptions[0]?.id ?? null
 
   return (

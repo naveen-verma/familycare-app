@@ -8,6 +8,7 @@ import { AddConditionDialog } from '@/components/conditions/AddConditionDialog'
 import { EditConditionDialog } from '@/components/conditions/EditConditionDialog'
 import { ConditionTag } from '@/components/conditions/ConditionTag'
 import { EditMemberHealthDialog } from '@/components/members/EditMemberHealthDialog'
+import { AvatarUploader } from '@/components/members/AvatarUploader'
 import { SecondOpinionButton } from '@/components/conditions/SecondOpinionButton'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
@@ -30,15 +31,6 @@ import {
   ActivityIcon,
   Pill,
 } from 'lucide-react'
-
-function getInitials(name: string) {
-  return name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2)
-}
 
 function calculateAge(dob: string): number {
   const birth = new Date(dob)
@@ -75,15 +67,6 @@ function bmiClass(bmi: number): { label: string; badgeClass: string } {
   return { label: 'Obese Class II', badgeClass: 'bg-red-100 text-red-700 border-red-200' }
 }
 
-const avatarColors: Record<string, string> = {
-  self: 'bg-blue-100 text-blue-700',
-  spouse: 'bg-pink-100 text-pink-700',
-  child: 'bg-green-100 text-green-700',
-  parent: 'bg-purple-100 text-purple-700',
-  sibling: 'bg-orange-100 text-orange-700',
-  other: 'bg-gray-100 text-gray-700',
-}
-
 function SectionBadge({ count }: { count: number }) {
   return (
     <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1.5 text-xs font-medium text-muted-foreground">
@@ -109,7 +92,10 @@ export default async function MemberProfilePage({
   if (!member) notFound()
 
   const age = member.date_of_birth ? calculateAge(member.date_of_birth) : null
-  const avatarColor = avatarColors[member.relation ?? 'other'] ?? avatarColors.other
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const familyGroupId = (member as any).family_group_id as string ?? ''
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const avatarUrl = (member as any).avatar_url as string | null ?? null
   const activeMedications = medications.filter(isMedicationActive)
 
   // Group conditions by status for sectioned rendering (Changes 1 & 2)
@@ -148,11 +134,13 @@ export default async function MemberProfilePage({
       <Card className="mb-4">
         <CardContent className="pt-4">
           <div className="flex items-start gap-4">
-            <div
-              className={`size-14 rounded-full flex items-center justify-center shrink-0 font-semibold text-base ${avatarColor}`}
-            >
-              {getInitials(member.full_name)}
-            </div>
+            <AvatarUploader
+              memberId={member.id}
+              familyGroupId={familyGroupId}
+              currentAvatarUrl={avatarUrl}
+              memberName={member.full_name}
+              size={56}
+            />
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between gap-2">
                 <h1 className="font-heading text-lg font-semibold leading-tight">
