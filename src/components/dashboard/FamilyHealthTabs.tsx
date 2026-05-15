@@ -144,7 +144,7 @@ export function FamilyHealthTabs({ members, onAddMember }: Props) {
               >
                 <MemberAvatar
                   name={member.name}
-                  avatarUrl={member.avatar_url}
+                  avatarUrl={null}
                   size={40}
                   colorIndex={i}
                 />
