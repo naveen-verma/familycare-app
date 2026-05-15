@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -24,8 +24,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { PlusIcon, SearchIcon, XIcon } from 'lucide-react'
+import { PlusIcon, SearchIcon, XIcon, Sparkles } from 'lucide-react'
 import { addConditionAction } from '@/app/(dashboard)/members/[id]/actions'
+import { createClient } from '@/lib/supabase/client'
 import type { ICD10Condition } from '@/types/database'
 
 const CONSULTATION_TYPES = [
@@ -47,21 +48,69 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>
 
+export interface ConditionPrefillData {
+  condition_name?: string
+  doctor_name?: string
+  visit_date?: string
+  hospital_name?: string
+  notes?: string
+  medications?: Array<{ name: string; dosage: string; frequency: string }>
+}
+
 export function AddConditionDialog({
   memberId,
-  icd10Conditions,
+  icd10Conditions: icd10ConditionsProp,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+  prefillData,
 }: {
   memberId: string
-  icd10Conditions: ICD10Condition[]
+  icd10Conditions?: ICD10Condition[]
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  prefillData?: ConditionPrefillData
 }) {
-  const [open, setOpen] = useState(false)
+  const isControlled = controlledOpen !== undefined
+  const [internalOpen, setInternalOpen] = useState(false)
+  const open = isControlled ? controlledOpen : internalOpen
+
   const [loading, setLoading] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [selectedCondition, setSelectedCondition] = useState<ICD10Condition | null>(null)
   const [customName, setCustomName] = useState('')
   const [consultationType, setConsultationType] = useState('visit')
+  const [icd10Conditions, setIcd10Conditions] = useState<ICD10Condition[]>(
+    icd10ConditionsProp ?? []
+  )
+  const [loadingConditions, setLoadingConditions] = useState(false)
   const router = useRouter()
+
+  // Load ICD-10 conditions if not passed as prop
+  useEffect(() => {
+    if (!open || icd10Conditions.length > 0) return
+    setLoadingConditions(true)
+    createClient()
+      .from('icd10_conditions')
+      .select('id, icd10_code, name, common_name, category, is_critical')
+      .order('name')
+      .then(({ data }) => {
+        setIcd10Conditions((data as ICD10Condition[]) ?? [])
+        setLoadingConditions(false)
+      })
+  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Apply prefill data when dialog opens
+  useEffect(() => {
+    if (!open || !prefillData) return
+    if (prefillData.doctor_name) setValue('diagnosed_by', prefillData.doctor_name)
+    if (prefillData.visit_date) setValue('diagnosed_on', prefillData.visit_date)
+    if (prefillData.notes) setValue('notes', prefillData.notes)
+    if (prefillData.condition_name) setSearch(prefillData.condition_name)
+    if (prefillData.condition_name && !prefillData.condition_name.includes(' ')) {
+      setCustomName(prefillData.condition_name)
+    }
+  }, [open, prefillData]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const filtered =
     search.length > 1
@@ -88,7 +137,7 @@ export function AddConditionDialog({
   })
 
   async function onSubmit(data: FormData) {
-    if (!selectedCondition && !customName.trim()) {
+    if (!selectedCondition && !customName.trim() && !search.trim()) {
       setFormError('Please select or enter a condition name.')
       return
     }
@@ -97,19 +146,15 @@ export function AddConditionDialog({
     try {
       await addConditionAction(memberId, {
         icd10_condition_id: selectedCondition?.id,
-        custom_name: selectedCondition ? undefined : customName.trim(),
+        custom_name: selectedCondition ? undefined : (customName.trim() || search.trim()),
         status: data.status,
         diagnosed_on: data.diagnosed_on,
         diagnosed_by: data.diagnosed_by,
         notes: data.notes,
         consultation_type: consultationType,
       })
-      reset()
-      setSearch('')
-      setSelectedCondition(null)
-      setCustomName('')
-      setConsultationType('visit')
-      setOpen(false)
+      handleReset()
+      setOpenState(false)
       router.refresh()
     } catch {
       setFormError('Failed to add condition. Please try again.')
@@ -127,28 +172,45 @@ export function AddConditionDialog({
     setFormError(null)
   }
 
+  function setOpenState(v: boolean) {
+    if (isControlled) {
+      controlledOnOpenChange?.(v)
+    } else {
+      setInternalOpen(v)
+    }
+    if (!v) handleReset()
+  }
+
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(v) => {
-        setOpen(v)
-        if (!v) handleReset()
-      }}
-    >
-      <DialogTrigger asChild>
-        <button className="inline-flex items-center gap-1.5 text-xs font-medium text-teal-700 border border-teal-600 rounded-lg px-3 py-1.5 hover:bg-teal-50 transition-colors">
-          <PlusIcon size={13} />
-          Add condition
-        </button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={setOpenState}>
+      {!isControlled && (
+        <DialogTrigger asChild>
+          <button className="inline-flex items-center gap-1.5 text-xs font-medium text-teal-700 border border-teal-600 rounded-lg px-3 py-1.5 hover:bg-teal-50 transition-colors">
+            <PlusIcon size={13} />
+            Add condition
+          </button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Add Medical Condition</DialogTitle>
         </DialogHeader>
+
+        {/* Pre-filled by AI banner */}
+        {prefillData && open && (
+          <div className="flex items-center gap-2 rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-xs text-teal-700">
+            <Sparkles className="size-3.5 shrink-0" />
+            Pre-filled by AI — please review all fields before saving
+          </div>
+        )}
+
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {/* Condition picker */}
           <div className="space-y-1.5">
             <Label>Condition *</Label>
+            {loadingConditions && (
+              <p className="text-xs text-muted-foreground">Loading conditions…</p>
+            )}
             {selectedCondition ? (
               <div className="flex items-center gap-2 rounded-lg border border-input px-3 py-2 bg-muted/50">
                 <div className="flex-1 min-w-0">
@@ -208,14 +270,14 @@ export function AddConditionDialog({
                     ))}
                   </div>
                 )}
-                {search.length > 1 && filtered.length === 0 && (
+                {search.length > 1 && filtered.length === 0 && !loadingConditions && (
                   <div className="mt-1.5 space-y-1.5">
                     <p className="text-xs text-muted-foreground">
                       No ICD-10 match — enter a custom name:
                     </p>
                     <Input
                       placeholder="Custom condition name"
-                      value={customName}
+                      value={customName || search}
                       onChange={(e) => setCustomName(e.target.value)}
                     />
                   </div>
@@ -288,7 +350,7 @@ export function AddConditionDialog({
           <DialogFooter>
             <Button
               type="submit"
-              disabled={loading || (!selectedCondition && !customName.trim())}
+              disabled={loading || (!selectedCondition && !customName.trim() && !search.trim())}
               className="w-full"
             >
               {loading ? 'Adding...' : 'Add Condition'}
