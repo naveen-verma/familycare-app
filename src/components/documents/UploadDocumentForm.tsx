@@ -16,7 +16,10 @@ import {
 } from '@/components/ui/select'
 import { saveDocumentAction } from '@/app/(dashboard)/documents/actions'
 import type { DocumentType } from '@/types/database'
-import { Upload, X, FileText, FileImage, AlertCircle, Sparkles, ChevronDown } from 'lucide-react'
+import { Upload, X, FileText, FileImage, AlertCircle, Sparkles, ChevronDown, Loader2 } from 'lucide-react'
+import { useDocumentExtraction } from '@/hooks/useDocumentExtraction'
+import { ExtractionResultBanner } from '@/components/documents/ExtractionResultBanner'
+import { AddConditionDialog } from '@/components/conditions/AddConditionDialog'
 
 const MIME_TO_EXT: Record<string, string> = {
   'application/pdf': 'pdf',
@@ -89,6 +92,15 @@ export function UploadDocumentForm({
   const [fileError, setFileError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [visitDetailsOpen, setVisitDetailsOpen] = useState(false)
+  const [showConditionDialog, setShowConditionDialog] = useState(false)
+
+  const {
+    extractFromFile,
+    isExtracting,
+    extractedData,
+    extractionError,
+    clearExtraction,
+  } = useDocumentExtraction()
 
   async function loadConditions(memberId: string) {
     setLoadingConditions(true)
@@ -289,20 +301,70 @@ export function UploadDocumentForm({
           </p>
         )}
 
-        {/* AI extraction entry point — functional in Phase 2 */}
-        {file && !fileError && (
+        {/* AI extraction */}
+        {file && !fileError && !extractedData && (
           <button
             type="button"
-            disabled
-            title="Coming soon in Phase 2"
-            className="mt-2 flex items-center gap-2 rounded-lg border border-dashed border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-700 opacity-70 cursor-not-allowed w-full"
+            onClick={() => extractFromFile(file, docType)}
+            disabled={isExtracting}
+            className="mt-2 flex items-center gap-2 rounded-lg border border-teal-300 bg-teal-50 px-3 py-2.5 text-left w-full hover:bg-teal-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            <Sparkles className="size-3.5 shrink-0" />
-            <span className="font-medium">Extract details from document</span>
-            <span className="ml-auto text-amber-500 font-normal">Coming in Phase 2</span>
+            {isExtracting ? (
+              <Loader2 className="size-3.5 text-teal-600 shrink-0 animate-spin" />
+            ) : (
+              <Sparkles className="size-3.5 text-teal-600 shrink-0" />
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-teal-800">
+                {isExtracting ? 'Reading document...' : 'Extract details with AI'}
+              </p>
+              {!isExtracting && (
+                <p className="text-xs text-teal-600 font-normal">
+                  Auto-fill condition, doctor and medications
+                </p>
+              )}
+            </div>
           </button>
         )}
+
+        {/* Extraction error */}
+        {extractionError && !extractedData && (
+          <p className="mt-1 flex items-start gap-1 text-xs text-muted-foreground">
+            <AlertCircle className="size-3 shrink-0 mt-0.5" />
+            Could not read this document. You can still fill in the details manually.
+          </p>
+        )}
       </div>
+
+      {/* Extraction result banner */}
+      {extractedData && (
+        <ExtractionResultBanner
+          data={extractedData}
+          onReviewCondition={() => setShowConditionDialog(true)}
+          onDismiss={clearExtraction}
+        />
+      )}
+
+      {/* Add Condition dialog — opened with AI-extracted prefill */}
+      {showConditionDialog && selectedMemberId && (
+        <AddConditionDialog
+          memberId={selectedMemberId}
+          open={showConditionDialog}
+          onOpenChange={setShowConditionDialog}
+          prefillData={
+            extractedData
+              ? {
+                  condition_name: extractedData.condition_name,
+                  doctor_name: extractedData.doctor_name,
+                  visit_date: extractedData.visit_date,
+                  hospital_name: extractedData.hospital_name,
+                  notes: extractedData.condition_notes,
+                  medications: extractedData.medications,
+                }
+              : undefined
+          }
+        />
+      )}
 
       {/* Upload progress */}
       {uploadProgress !== null && (
