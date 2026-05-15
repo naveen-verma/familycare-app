@@ -33,6 +33,7 @@ import { createClient } from '@/lib/supabase/client'
 import { logVisitAction, type LogVisitInput, type LogVisitResult } from '@/app/(dashboard)/visits/actions'
 import type { ICD10Condition, DocumentType, ConsultationType } from '@/types/database'
 import type { FamilyMemberSummary } from '@/components/dashboard/QuickActionsBar'
+import { useDocumentExtraction } from '@/hooks/useDocumentExtraction'
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -200,6 +201,8 @@ export function LogVisitSheet({ open, onOpenChange, members, onSuccess }: LogVis
   const [documentNotes, setDocumentNotes] = useState('')
   const [fileError, setFileError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [extractionBanner, setExtractionBanner] = useState<string | null>(null)
+  const { extractFromFile, isExtracting } = useDocumentExtraction()
 
   // Step 5
   const [medications, setMedications] = useState<MedEntry[]>([])
@@ -231,6 +234,7 @@ export function LogVisitSheet({ open, onOpenChange, members, onSuccess }: LogVis
     setDocumentType('prescription')
     setDocumentNotes('')
     setFileError(null)
+    setExtractionBanner(null)
     setMedications([])
     setSaving(false)
     setSaveError(null)
@@ -852,6 +856,51 @@ export function LogVisitSheet({ open, onOpenChange, members, onSuccess }: LogVis
               )}
 
               {fileError && <p className="text-xs text-destructive">{fileError}</p>}
+
+              {/* Extract with AI */}
+              {selectedFile && !fileError && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const data = await extractFromFile(selectedFile, documentType)
+                    if (!data) return
+                    if (data.doctor_name && !doctorName) setDoctorName(data.doctor_name)
+                    if (data.hospital_name && !hospitalName) setHospitalName(data.hospital_name)
+                    if (data.visit_date && !consultationDate) setConsultationDate(data.visit_date)
+                    if (data.condition_name && conditionMode === 'skip') {
+                      setIcd10Search(data.condition_name)
+                      setConditionMode('skip')
+                    }
+                    setExtractionBanner('Details extracted — review in previous steps')
+                  }}
+                  disabled={isExtracting}
+                  className="flex items-center gap-2 rounded-lg border border-teal-300 bg-teal-50 px-3 py-2.5 text-left w-full hover:bg-teal-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isExtracting ? (
+                    <span className="size-3.5 border-2 border-teal-500 border-t-transparent rounded-full animate-spin shrink-0" />
+                  ) : (
+                    <span className="text-teal-600 shrink-0">✨</span>
+                  )}
+                  <div>
+                    <p className="text-xs font-semibold text-teal-800">
+                      {isExtracting ? 'Reading document...' : 'Extract details with AI'}
+                    </p>
+                    {!isExtracting && (
+                      <p className="text-xs text-teal-600">Auto-fill visit fields from this document</p>
+                    )}
+                  </div>
+                </button>
+              )}
+
+              {/* Extraction banner */}
+              {extractionBanner && (
+                <div className="flex items-center justify-between gap-2 rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-xs text-teal-700">
+                  <span>✨ {extractionBanner}</span>
+                  <button onClick={() => setExtractionBanner(null)}>
+                    <XIcon className="size-3.5 text-teal-500" />
+                  </button>
+                </div>
+              )}
 
               <div className="space-y-1.5">
                 <Label>Document Type</Label>
