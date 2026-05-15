@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Stethoscope } from 'lucide-react'
-import { LogVisitSheet } from '@/components/visits/LogVisitSheet'
+import HealthEventLogger from '@/components/visits/HealthEventLogger'
 import type { FamilyMemberSummary } from '@/components/dashboard/QuickActionsBar'
 
 interface DoctorVisitFABProps {
@@ -33,10 +33,10 @@ export function DoctorVisitFAB({ members, onSuccess, disabled }: DoctorVisitFABP
         <span className="hidden sm:inline text-sm font-medium">Log Visit</span>
       </button>
 
-      <LogVisitSheet
-        open={open}
-        onOpenChange={setOpen}
-        members={members}
+      <HealthEventLogger
+        isOpen={open}
+        onClose={() => setOpen(false)}
+        familyMembers={members}
         onSuccess={onSuccess}
       />
     </>
