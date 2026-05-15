@@ -127,7 +127,7 @@ async function fetchMemberEvents(memberId: string): Promise<HorizontalTimelineEv
       year: dt.getFullYear(),
       month: dt.getMonth() + 1,
       type: 'document',
-      title: d.title,
+      title: d.title || 'Document',
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       subtitle: (d as any).document_type ?? '',
       member_id: memberId,
@@ -398,44 +398,51 @@ export function TimelineView({
         </div>
       )}
 
-      {/* ── Year rows ── */}
-      {!loading && years.map((year, yi) => {
-        const yearEvents = eventsByYear[year]
-        const isCurrentYear = year === currentYear
-        const isLastYear = yi === years.length - 1
-        return (
-          <div key={year} className="flex gap-3">
-            {/* Year label + stem */}
-            <div className="flex flex-col items-center shrink-0" style={{ width: 44 }}>
-              <button
-                onClick={() => setSelectedYear(selectedYear === year ? null : year)}
-                className={`text-[13px] font-medium leading-tight w-full text-right transition-colors ${
-                  isCurrentYear
-                    ? 'text-teal-600'
-                    : selectedYear === year
-                      ? 'text-teal-500'
-                      : 'text-gray-400 hover:text-gray-600'
-                }`}
-              >
-                {year}
-              </button>
-              <div className="mt-2 w-2.5 h-2.5 rounded-full bg-teal-500 shrink-0" />
-              {!isLastYear && (
-                <div className="flex-1 w-px bg-gray-200 mt-1 min-h-[60px]" />
-              )}
-            </div>
+      {/* ── Year rows — own wrapper so space-y-5 does not gap between rows ── */}
+      {!loading && (
+        <div>
+          {years.map((year, yi) => {
+            const yearEvents = eventsByYear[year]
+            const isCurrentYear = year === currentYear
+            const isLastYear = yi === years.length - 1
+            return (
+              <div key={year} className="flex items-start">
+                {/* Year label + dot + stem */}
+                <div
+                  className={`flex flex-col items-center shrink-0 self-stretch ${!isLastYear ? 'pb-8' : ''}`}
+                  style={{ width: 44, marginRight: 12 }}
+                >
+                  <button
+                    onClick={() => setSelectedYear(selectedYear === year ? null : year)}
+                    className={`text-[13px] font-medium leading-tight w-full text-right transition-colors ${
+                      isCurrentYear
+                        ? 'text-teal-600'
+                        : selectedYear === year
+                          ? 'text-teal-500'
+                          : 'text-gray-400 hover:text-gray-600'
+                    }`}
+                  >
+                    {year}
+                  </button>
+                  <div className="mt-2 w-3 h-3 rounded-full bg-teal-500 shrink-0" />
+                  {!isLastYear && (
+                    <div className="flex-1 min-h-8 mt-1" style={{ width: 2, backgroundColor: '#E5E7EB' }} />
+                  )}
+                </div>
 
-            {/* Event pills */}
-            <div className="flex-1 pb-4">
-              <div className="flex flex-wrap gap-3 pt-0.5">
-                {yearEvents.map(event => (
-                  <EventPill key={event.id} event={event} />
-                ))}
+                {/* Event pills */}
+                <div className={`flex-1 ${!isLastYear ? 'pb-8' : 'pb-4'}`}>
+                  <div className="flex flex-wrap gap-3 pt-0.5">
+                    {yearEvents.map(event => (
+                      <EventPill key={event.id} event={event} />
+                    ))}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        )
-      })}
+            )
+          })}
+        </div>
+      )}
 
       {/* ── Legend ── */}
       {!loading && filteredEvents.length > 0 && (
