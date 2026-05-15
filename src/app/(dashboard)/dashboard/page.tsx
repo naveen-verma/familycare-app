@@ -259,6 +259,7 @@ export default async function DashboardPage() {
       blood_group: m.blood_group,
       gender: m.gender,
       is_primary: m.is_primary,
+      avatar_url: m.avatar_url ?? null,
       conditions_count: m.medical_conditions.filter(c => !c.deleted_at).length,
       active_conditions_count: activeConditions.length,
       medications_count: medCountByMember[m.id] ?? 0,

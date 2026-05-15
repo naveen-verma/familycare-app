@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { UserPlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { MemberAvatar } from '@/components/members/MemberAvatar'
 
 export interface FamilyMemberSummary {
   id: string
@@ -13,6 +14,7 @@ export interface FamilyMemberSummary {
   blood_group: string | null
   gender: string | null
   is_primary: boolean
+  avatar_url: string | null
   conditions_count: number
   active_conditions_count: number
   medications_count: number
@@ -30,8 +32,6 @@ interface Props {
   members: FamilyMemberSummary[]
   onAddMember?: () => void
 }
-
-const AVATAR_COLORS = ['#0D9488', '#7F77DD', '#D85A30', '#1D9E75', '#D4537E', '#378ADD']
 
 const CONDITION_DOT: Record<string, string> = {
   active: '#E24B4A',
@@ -97,7 +97,6 @@ export function FamilyHealthTabs({ members, onAddMember }: Props) {
 
   const safeIndex = Math.min(activeIndex, members.length - 1)
   const m = members[safeIndex]
-  const color = AVATAR_COLORS[safeIndex % AVATAR_COLORS.length]
   const age = getAge(m.date_of_birth)
   const status = getStatus(m)
 
@@ -143,12 +142,12 @@ export function FamilyHealthTabs({ members, onAddMember }: Props) {
                   isActive ? 'border-teal-600' : 'border-transparent'
                 }`}
               >
-                <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center text-white text-xs font-medium"
-                  style={{ background: AVATAR_COLORS[i % AVATAR_COLORS.length] }}
-                >
-                  {getInitials(member.name)}
-                </div>
+                <MemberAvatar
+                  name={member.name}
+                  avatarUrl={member.avatar_url}
+                  size={40}
+                  colorIndex={i}
+                />
                 <span className={`text-[11px] font-medium whitespace-nowrap ${
                   isActive ? 'text-teal-600' : 'text-gray-400'
                 }`}>
@@ -164,12 +163,12 @@ export function FamilyHealthTabs({ members, onAddMember }: Props) {
 
           {/* 1. Profile strip — compact single row (Changes 2) */}
           <div className="flex items-start gap-3">
-            <div
-              className="size-12 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0"
-              style={{ backgroundColor: color }}
-            >
-              {getInitials(m.name)}
-            </div>
+            <MemberAvatar
+              name={m.name}
+              avatarUrl={m.avatar_url}
+              size={48}
+              colorIndex={safeIndex}
+            />
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Activity, Stethoscope, FileText, Pill, Clock, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { MemberAvatar } from '@/components/members/MemberAvatar'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -33,7 +34,6 @@ const EVENT_CONFIG: Record<EventType, {
   medication: { bg: '#EEEDFE', color: '#3C3489', Icon: Pill,        label: 'Medication'  },
 }
 
-const AVATAR_COLORS = ['#0D9488', '#7F77DD', '#D85A30', '#1D9E75', '#D4537E', '#378ADD']
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
 const FILTER_CHIPS: { label: string; value: EventType | 'all' }[] = [
@@ -154,10 +154,6 @@ async function fetchMemberEvents(memberId: string): Promise<HorizontalTimelineEv
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-function getInitials(name: string): string {
-  return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-}
-
 function fmtDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-IN', {
     day: 'numeric',
@@ -215,7 +211,7 @@ export function TimelineView({
   members,
   initialMemberId,
 }: {
-  members: { id: string; full_name: string }[]
+  members: { id: string; full_name: string; avatar_url?: string | null }[]
   initialMemberId: string
 }) {
   const [activeMemberId, setActiveMemberId] = useState(initialMemberId)
@@ -281,7 +277,6 @@ export function TimelineView({
       >
         {members.map((m, i) => {
           const isActive = m.id === activeMemberId
-          const color = AVATAR_COLORS[i % AVATAR_COLORS.length]
           return (
             <button
               key={m.id}
@@ -292,12 +287,12 @@ export function TimelineView({
                   : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
               }`}
             >
-              <div
-                className="w-[18px] h-[18px] rounded-full flex items-center justify-center text-white text-[8px] font-bold shrink-0"
-                style={{ backgroundColor: isActive ? 'rgba(255,255,255,0.25)' : color }}
-              >
-                {getInitials(m.full_name)}
-              </div>
+              <MemberAvatar
+                name={m.full_name}
+                avatarUrl={m.avatar_url ?? null}
+                size={18}
+                colorIndex={i}
+              />
               {m.full_name.split(' ')[0]}
             </button>
           )

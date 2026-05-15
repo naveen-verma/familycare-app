@@ -10,6 +10,7 @@ export type MemberWithConditions = {
   mobile: string | null
   is_primary: boolean
   profile_photo_url: string | null
+  avatar_url: string | null
   created_at: string
   medical_conditions: Array<{
     id: string
@@ -28,7 +29,7 @@ export async function getFamilyMembers(): Promise<MemberWithConditions[]> {
     .from('family_members')
     .select(`
       id, full_name, date_of_birth, gender, blood_group, relation,
-      mobile, is_primary, profile_photo_url, created_at,
+      mobile, is_primary, profile_photo_url, avatar_url, created_at,
       medical_conditions(
         id, status, custom_name, diagnosed_on, deleted_at,
         icd10_conditions(name, common_name)
