@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { PlusIcon, SearchIcon, XIcon, Sparkles } from 'lucide-react'
+import { PlusIcon, SearchIcon, XIcon } from 'lucide-react'
 import { addConditionAction } from '@/app/(dashboard)/members/[id]/actions'
 import { createClient } from '@/lib/supabase/client'
 import type { ICD10Condition } from '@/types/database'
@@ -48,27 +48,16 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>
 
-export interface ConditionPrefillData {
-  condition_name?: string
-  doctor_name?: string
-  visit_date?: string
-  hospital_name?: string
-  notes?: string
-  medications?: Array<{ name: string; dosage: string; frequency: string }>
-}
-
 export function AddConditionDialog({
   memberId,
   icd10Conditions: icd10ConditionsProp,
   open: controlledOpen,
   onOpenChange: controlledOnOpenChange,
-  prefillData,
 }: {
   memberId: string
   icd10Conditions?: ICD10Condition[]
   open?: boolean
   onOpenChange?: (open: boolean) => void
-  prefillData?: ConditionPrefillData
 }) {
   const isControlled = controlledOpen !== undefined
   const [internalOpen, setInternalOpen] = useState(false)
@@ -99,18 +88,6 @@ export function AddConditionDialog({
         setLoadingConditions(false)
       })
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Apply prefill data when dialog opens
-  useEffect(() => {
-    if (!open || !prefillData) return
-    if (prefillData.doctor_name) setValue('diagnosed_by', prefillData.doctor_name)
-    if (prefillData.visit_date) setValue('diagnosed_on', prefillData.visit_date)
-    if (prefillData.notes) setValue('notes', prefillData.notes)
-    if (prefillData.condition_name) setSearch(prefillData.condition_name)
-    if (prefillData.condition_name && !prefillData.condition_name.includes(' ')) {
-      setCustomName(prefillData.condition_name)
-    }
-  }, [open, prefillData]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const filtered =
     search.length > 1
@@ -195,14 +172,6 @@ export function AddConditionDialog({
         <DialogHeader>
           <DialogTitle>Add Medical Condition</DialogTitle>
         </DialogHeader>
-
-        {/* Pre-filled by AI banner */}
-        {prefillData && open && (
-          <div className="flex items-center gap-2 rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-xs text-teal-700">
-            <Sparkles className="size-3.5 shrink-0" />
-            Pre-filled by AI — please review all fields before saving
-          </div>
-        )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {/* Condition picker */}
