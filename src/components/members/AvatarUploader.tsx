@@ -11,13 +11,14 @@ import { getCroppedImg } from '@/lib/cropImage'
 import { createClient } from '@/lib/supabase/client'
 
 export interface AvatarUploaderProps {
-  memberId: string
-  familyGroupId: string
+  memberId?: string
+  familyGroupId?: string
   currentAvatarUrl: string | null
   memberName: string
   size?: number
   colorIndex?: number
   onSuccess?: (newUrl: string) => void
+  onCropComplete?: (blob: Blob) => void
 }
 
 const MAX_SIZE_BYTES = 5 * 1024 * 1024 // 5MB
@@ -30,6 +31,7 @@ export function AvatarUploader({
   size = 80,
   colorIndex = 0,
   onSuccess,
+  onCropComplete,
 }: AvatarUploaderProps) {
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -69,7 +71,7 @@ export function AvatarUploader({
     e.target.value = ''
   }
 
-  const onCropComplete = useCallback((_: Area, croppedPixels: Area) => {
+  const handleCropAreaChange = useCallback((_: Area, croppedPixels: Area) => {
     setCroppedAreaPixels(croppedPixels)
   }, [])
 
@@ -79,35 +81,46 @@ export function AvatarUploader({
     setError(null)
     try {
       const blob = await getCroppedImg(imageSrc, croppedAreaPixels)
-      const supabase = createClient()
-      const path = `${familyGroupId}/${memberId}/avatar.jpg`
 
-      const { error: uploadError } = await supabase.storage
-        .from('member-avatars')
-        .upload(path, blob, { upsert: true, contentType: 'image/jpeg' })
+      if (memberId) {
+        // Existing member — upload immediately
+        const supabase = createClient()
+        const path = `${familyGroupId}/${memberId}/avatar.jpg`
 
-      if (uploadError) throw uploadError
+        const { error: uploadError } = await supabase.storage
+          .from('member-avatars')
+          .upload(path, blob, { upsert: true, contentType: 'image/jpeg' })
 
-      const { data: signedData, error: signError } = await supabase.storage
-        .from('member-avatars')
-        .createSignedUrl(path, 60 * 60 * 24 * 365)
+        if (uploadError) throw uploadError
 
-      if (signError || !signedData?.signedUrl) throw signError ?? new Error('Signed URL failed')
+        const { data: signedData, error: signError } = await supabase.storage
+          .from('member-avatars')
+          .createSignedUrl(path, 60 * 60 * 24 * 365)
 
-      const signedUrl = signedData.signedUrl
+        if (signError || !signedData?.signedUrl) throw signError ?? new Error('Signed URL failed')
 
-      const { error: dbError } = await supabase
-        .from('family_members')
-        .update({ avatar_url: signedUrl })
-        .eq('id', memberId)
+        const signedUrl = signedData.signedUrl
 
-      if (dbError) throw dbError
+        const { error: dbError } = await supabase
+          .from('family_members')
+          .update({ avatar_url: signedUrl })
+          .eq('id', memberId)
 
-      setDisplayUrl(signedUrl)
+        if (dbError) throw dbError
+
+        setDisplayUrl(signedUrl)
+        onSuccess?.(signedUrl)
+        router.refresh()
+      } else {
+        // New member — store blob locally, upload after member is saved
+        const localUrl = URL.createObjectURL(blob)
+        setDisplayUrl(localUrl)
+        onSuccess?.(localUrl)
+        onCropComplete?.(blob)
+      }
+
       setIsCropOpen(false)
       setImageSrc(null)
-      onSuccess?.(signedUrl)
-      router.refresh()
     } catch {
       setError('Upload failed. Please try again.')
     } finally {
@@ -191,7 +204,7 @@ export function AvatarUploader({
                 showGrid={false}
                 onCropChange={setCrop}
                 onZoomChange={setZoom}
-                onCropComplete={onCropComplete}
+                onCropComplete={handleCropAreaChange}
               />
             </div>
 
@@ -231,7 +244,7 @@ export function AvatarUploader({
                 onClick={handleSave}
                 disabled={uploading}
               >
-                {uploading ? 'Saving...' : 'Save photo'}
+                {uploading ? 'Saving...' : 'Use photo'}
               </Button>
             </div>
           </div>
