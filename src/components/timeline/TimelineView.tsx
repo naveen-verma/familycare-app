@@ -406,10 +406,12 @@ export function TimelineView({
             const isCurrentYear = year === currentYear
             const isLastYear = yi === years.length - 1
             return (
-              <div key={year} className="flex items-start">
+              // mb-10 on the row (not pb-8 on inner columns) so flex-1 stem line
+              // fills all the way to the row bottom edge with no padding gap
+              <div key={year} className={`flex items-start ${!isLastYear ? 'mb-10' : ''}`}>
                 {/* Year label + dot + stem */}
                 <div
-                  className={`flex flex-col items-center shrink-0 self-stretch ${!isLastYear ? 'pb-8' : ''}`}
+                  className="flex flex-col items-center shrink-0 self-stretch"
                   style={{ width: 44, marginRight: 12 }}
                 >
                   <button
@@ -426,12 +428,12 @@ export function TimelineView({
                   </button>
                   <div className="mt-2 w-3 h-3 rounded-full bg-teal-500 shrink-0" />
                   {!isLastYear && (
-                    <div className="flex-1 min-h-8 mt-1" style={{ width: 2, backgroundColor: '#E5E7EB' }} />
+                    <div className="flex-1 mt-1.5 min-h-[20px]" style={{ width: 2, backgroundColor: '#E5E7EB' }} />
                   )}
                 </div>
 
                 {/* Event pills */}
-                <div className={`flex-1 ${!isLastYear ? 'pb-8' : 'pb-4'}`}>
+                <div className="flex-1 pb-4">
                   <div className="flex flex-wrap gap-3 pt-0.5">
                     {yearEvents.map(event => (
                       <EventPill key={event.id} event={event} />
