@@ -168,3 +168,140 @@ export async function logVisitAction(input: LogVisitInput): Promise<LogVisitResu
 
   return { conditionCreated, documentSaved, medicationCount }
 }
+
+// ─── Health Event Logger — new 4-step flow ────────────────────────────────────
+
+export type SaveHealthEventInput = {
+  memberId: string
+  conditionType: 'new' | 'existing' | 'skip'
+  conditionName?: string
+  existingConditionId?: string
+  visitDetails: {
+    doctor_name: string
+    hospital_name: string
+    visit_date: string
+    visit_type: ConsultationType
+    notes: string
+  }
+  documents: Array<{
+    fileUrl: string
+    mimeType: string
+    fileSizeKb: number
+    title: string
+    documentType: DocumentType
+  }>
+  medications: Array<{
+    name: string
+    dosage: string
+    frequency: string
+    reminderEnabled: boolean
+  }>
+}
+
+export type SaveHealthEventResult = {
+  conditionCreated: boolean
+  documentCount: number
+  medicationCount: number
+}
+
+export async function saveHealthEventAction(
+  input: SaveHealthEventInput
+): Promise<SaveHealthEventResult> {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const { data: profile, error: profileErr } = await supabase
+    .from('users')
+    .select('id')
+    .eq('supabase_auth_id', user.id)
+    .single()
+  if (profileErr || !profile) throw new Error('User profile not found')
+
+  let medicalConditionId: string | null = null
+  let conditionCreated = false
+
+  // 1 — Create new condition (custom name; WF5 will ICD-10 match in background)
+  if (input.conditionType === 'new' && input.conditionName?.trim()) {
+    const { data: condition, error } = await supabase
+      .from('medical_conditions')
+      .insert({
+        family_member_id: input.memberId,
+        custom_name: input.conditionName.trim(),
+        status: 'active',
+        diagnosed_on: input.visitDetails.visit_date || null,
+        diagnosed_by: input.visitDetails.doctor_name || null,
+        specialist_matched: false,
+        second_opinion_requested: false,
+      })
+      .select('id')
+      .single()
+    if (error) throw error
+    medicalConditionId = condition.id
+    conditionCreated = true
+  } else if (input.conditionType === 'existing' && input.existingConditionId) {
+    medicalConditionId = input.existingConditionId
+  }
+
+  // 2 — Create consultation record
+  const { error: consultError } = await supabase.from('condition_consultations').insert({
+    medical_condition_id: medicalConditionId,
+    doctor_name: input.visitDetails.doctor_name || null,
+    hospital_name: input.visitDetails.hospital_name || null,
+    consultation_date: input.visitDetails.visit_date || null,
+    consultation_type: input.visitDetails.visit_type,
+    notes: input.visitDetails.notes || null,
+  })
+  if (consultError) throw consultError
+
+  // 3 — Save document records (files already uploaded to storage by caller)
+  let documentCount = 0
+  for (const doc of input.documents) {
+    const { error: docError } = await supabase.from('documents').insert({
+      family_member_id: input.memberId,
+      medical_condition_id: medicalConditionId,
+      uploaded_by: profile.id,
+      document_type: doc.documentType,
+      title: doc.title,
+      file_url: doc.fileUrl,
+      file_type: toDbFileType(doc.mimeType),
+      file_size_kb: doc.fileSizeKb,
+      doctor_name: input.visitDetails.doctor_name || null,
+      hospital_name: input.visitDetails.hospital_name || null,
+      document_date: input.visitDetails.visit_date || null,
+      phase2_ready: false,
+    })
+    if (docError) throw docError
+    documentCount++
+  }
+
+  // 4 — Create medication records
+  let medicationCount = 0
+  for (const med of input.medications) {
+    if (!med.name.trim()) continue
+    const { error: medError } = await supabase.from('medications').insert({
+      family_member_id: input.memberId,
+      medical_condition_id: medicalConditionId,
+      name: med.name.trim(),
+      dosage: med.dosage?.trim() || null,
+      frequency: med.frequency || null,
+      time_of_day: ['08:00'],
+      start_date: input.visitDetails.visit_date || null,
+      prescribed_by: input.visitDetails.doctor_name || null,
+      is_active: true,
+      reminder_enabled: med.reminderEnabled ?? true,
+    })
+    if (medError) throw medError
+    medicationCount++
+  }
+
+  revalidatePath('/dashboard')
+  revalidatePath(`/members/${input.memberId}`)
+  revalidatePath('/documents')
+  revalidatePath('/medications')
+
+  return { conditionCreated, documentCount, medicationCount }
+}
