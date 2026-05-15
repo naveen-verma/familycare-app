@@ -36,7 +36,7 @@ export async function addMemberAction(formData: {
 
   if (groupError || !familyGroup) throw new Error('Family group not found')
 
-  const { error } = await supabase
+  const { data: newMember, error } = await supabase
     .from('family_members')
     .insert({
       family_group_id: familyGroup.id,
@@ -52,11 +52,15 @@ export async function addMemberAction(formData: {
       bmi: formData.bmi ?? null,
       bmi_date: formData.bmi_date ?? null,
     })
+    .select('id')
+    .single()
 
   if (error) throw error
 
   revalidatePath('/dashboard')
   revalidatePath('/members')
+
+  return { memberId: newMember.id, familyGroupId: familyGroup.id }
 }
 
 export async function deleteMemberAction(memberId: string) {
