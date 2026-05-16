@@ -465,20 +465,43 @@ export default function HealthEventLogger({
     <Sheet open={isOpen} onOpenChange={handleOpenChange}>
       <SheetContent
         side="bottom"
-        className="rounded-t-2xl max-h-[92vh] overflow-y-auto px-0 pb-safe"
+        className="rounded-t-2xl h-[92vh] md:h-[85vh] max-h-[92vh] md:max-h-[85vh] flex flex-col overflow-hidden p-0"
       >
-        <div className="px-5">
 
-          {/* ─── STEP 1: Who and what condition? ──────────────────────────── */}
+        {/* ── Zone 1: Fixed header — never scrolls ──────────────────────── */}
+        <div className="flex-shrink-0 px-5 pt-5 pb-4 border-b border-border">
+          <div className="flex items-center gap-2 pr-8">
+            {step > 1 && (
+              <button
+                onClick={() => setStep(step - 1)}
+                className="p-1 -ml-1 rounded-lg hover:bg-muted/40 shrink-0"
+                aria-label="Back"
+              >
+                <ArrowLeft className="size-4" />
+              </button>
+            )}
+            <SheetHeader className="text-left flex-1">
+              <SheetTitle>
+                {step === 1 && 'Log a visit'}
+                {step === 2 && 'Upload documents'}
+                {step === 3 && 'Review visit details'}
+                {step === 4 && 'Ready to save'}
+              </SheetTitle>
+            </SheetHeader>
+          </div>
+          <ProgressDots current={step} total={4} />
+        </div>
+
+        {/* ── Zone 2: Scrollable content ────────────────────────────────── */}
+        <div
+          className="flex-1 overflow-y-auto overflow-x-hidden px-5 py-5 space-y-5"
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          style={{ WebkitOverflowScrolling: 'touch' } as any}
+        >
+
+          {/* ─── STEP 1: Who and what condition? ────────────────────────── */}
           {step === 1 && (
-            <div className="space-y-5">
-              <div>
-                <SheetHeader className="text-left">
-                  <SheetTitle>Log a visit</SheetTitle>
-                </SheetHeader>
-                <ProgressDots current={1} total={4} />
-              </div>
-
+            <>
               {/* Member chips */}
               <div className="space-y-2">
                 <Label>Who visited the doctor?</Label>
@@ -587,32 +610,12 @@ export default function HealthEventLogger({
                   )}
                 </div>
               )}
-
-              <Button
-                className="w-full bg-teal-600 hover:bg-teal-700"
-                disabled={!step1Valid}
-                onClick={() => setStep(2)}
-              >
-                Next →
-              </Button>
-            </div>
+            </>
           )}
 
-          {/* ─── STEP 2: Upload + AI extraction ───────────────────────────── */}
+          {/* ─── STEP 2: Upload + AI extraction ─────────────────────────── */}
           {step === 2 && (
-            <div className="space-y-5">
-              <div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setStep(1)} className="p-1 -ml-1 rounded-lg hover:bg-muted/40">
-                    <ArrowLeft className="size-4" />
-                  </button>
-                  <SheetHeader className="text-left flex-1">
-                    <SheetTitle>Upload documents</SheetTitle>
-                  </SheetHeader>
-                </div>
-                <ProgressDots current={2} total={4} />
-              </div>
-
+            <>
               {/* Upload area */}
               {uploadedFiles.length < MAX_FILES && (
                 <label className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-muted-foreground/30 py-6 cursor-pointer hover:border-teal-400 hover:bg-teal-50/30 transition-colors">
@@ -778,44 +781,12 @@ export default function HealthEventLogger({
                   </p>
                 </div>
               )}
-
-              {/* Footer */}
-              <div className="flex items-center justify-between gap-3 pt-1">
-                {uploadedFiles.length === 0 && (
-                  <button
-                    onClick={() => setStep(3)}
-                    className="text-sm text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
-                  >
-                    Skip, continue manually →
-                  </button>
-                )}
-                {uploadedFiles.length > 0 && (
-                  <Button
-                    className="w-full bg-teal-600 hover:bg-teal-700"
-                    onClick={() => setStep(3)}
-                  >
-                    Next →
-                  </Button>
-                )}
-              </div>
-            </div>
+            </>
           )}
 
-          {/* ─── STEP 3: Review and edit ───────────────────────────────────── */}
+          {/* ─── STEP 3: Review and edit ─────────────────────────────────── */}
           {step === 3 && (
-            <div className="space-y-5">
-              <div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setStep(2)} className="p-1 -ml-1 rounded-lg hover:bg-muted/40">
-                    <ArrowLeft className="size-4" />
-                  </button>
-                  <SheetHeader className="text-left flex-1">
-                    <SheetTitle>Review visit details</SheetTitle>
-                  </SheetHeader>
-                </div>
-                <ProgressDots current={3} total={4} />
-              </div>
-
+            <>
               {extractionUsed && (
                 <div className="flex items-center gap-2 rounded-lg border border-teal-200 bg-teal-50 px-3 py-2">
                   <Sparkles className="size-3.5 text-teal-600 shrink-0" />
@@ -938,31 +909,12 @@ export default function HealthEventLogger({
                   No medications extracted. Add medications later from the Medications page.
                 </p>
               )}
-
-              <Button
-                className="w-full bg-teal-600 hover:bg-teal-700"
-                onClick={() => setStep(4)}
-              >
-                Review summary →
-              </Button>
-            </div>
+            </>
           )}
 
-          {/* ─── STEP 4: Save everything ───────────────────────────────────── */}
+          {/* ─── STEP 4: Save everything ─────────────────────────────────── */}
           {step === 4 && (
-            <div className="space-y-5">
-              <div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setStep(3)} className="p-1 -ml-1 rounded-lg hover:bg-muted/40">
-                    <ArrowLeft className="size-4" />
-                  </button>
-                  <SheetHeader className="text-left flex-1">
-                    <SheetTitle>Ready to save</SheetTitle>
-                  </SheetHeader>
-                </div>
-                <ProgressDots current={4} total={4} />
-              </div>
-
+            <>
               {saveError && (
                 <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2.5">
                   <AlertCircle className="size-4 text-destructive shrink-0 mt-0.5" />
@@ -1056,25 +1008,64 @@ export default function HealthEventLogger({
                   <p className="text-sm font-medium">{selectedMember?.full_name ?? '—'}</p>
                 </div>
               </div>
-
-              <Button
-                className="w-full bg-teal-600 hover:bg-teal-700"
-                onClick={handleSave}
-                disabled={isSaving}
-              >
-                {isSaving ? (
-                  <span className="flex items-center gap-2">
-                    <Loader2 className="size-4 animate-spin" /> Saving…
-                  </span>
-                ) : (
-                  'Save visit'
-                )}
-              </Button>
-            </div>
+            </>
           )}
 
         </div>
-        <div className="h-6" />
+
+        {/* ── Zone 3: Fixed footer — always visible ─────────────────────── */}
+        <div className="flex-shrink-0 px-5 py-3 border-t border-border bg-white">
+          {step === 1 && (
+            <Button
+              className="w-full bg-teal-600 hover:bg-teal-700"
+              disabled={!step1Valid}
+              onClick={() => setStep(2)}
+            >
+              Next →
+            </Button>
+          )}
+          {step === 2 && (
+            uploadedFiles.length === 0 ? (
+              <button
+                onClick={() => setStep(3)}
+                className="w-full text-sm text-center text-muted-foreground hover:text-foreground py-2"
+              >
+                Skip, continue manually →
+              </button>
+            ) : (
+              <Button
+                className="w-full bg-teal-600 hover:bg-teal-700"
+                onClick={() => setStep(3)}
+              >
+                Next →
+              </Button>
+            )
+          )}
+          {step === 3 && (
+            <Button
+              className="w-full bg-teal-600 hover:bg-teal-700"
+              onClick={() => setStep(4)}
+            >
+              Review summary →
+            </Button>
+          )}
+          {step === 4 && (
+            <Button
+              className="w-full bg-teal-600 hover:bg-teal-700"
+              onClick={handleSave}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="size-4 animate-spin" /> Saving…
+                </span>
+              ) : (
+                'Save visit'
+              )}
+            </Button>
+          )}
+        </div>
+
       </SheetContent>
     </Sheet>
   )
