@@ -1,12 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet'
+import { useState, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -461,42 +455,54 @@ export default function HealthEventLogger({
   const enabledMeds = extractedMeds.filter((m) => m.enabled)
 
   // ── Render ─────────────────────────────────────────────────────────────────
+  if (!isOpen) return null
+
   return (
-    <Sheet open={isOpen} onOpenChange={handleOpenChange}>
-      <SheetContent
-        side="bottom"
-        className="rounded-t-2xl h-[92vh] md:h-[85vh] max-h-[92vh] md:max-h-[85vh] flex flex-col overflow-hidden p-0"
+    // Backdrop — full-screen overlay, sheet sits at bottom
+    <div
+      className="fixed inset-0 bg-black/40 z-50 flex items-end justify-center"
+      onClick={() => handleOpenChange(false)}
+    >
+      {/* Sheet — fixed height, never resizes */}
+      <div
+        className="w-full bg-white flex flex-col rounded-t-2xl overflow-hidden"
+        style={{ height: '85vh', maxHeight: '85vh' }}
+        onClick={(e) => e.stopPropagation()}
       >
 
         {/* ── Zone 1: Fixed header — never scrolls ──────────────────────── */}
-        <div className="flex-shrink-0 px-5 pt-5 pb-4 border-b border-border">
-          <div className="flex items-center gap-2 pr-8">
+        <div className="flex-shrink-0 px-6 pt-5 pb-4 border-b border-gray-100">
+          <div className="flex items-center gap-2">
             {step > 1 && (
               <button
                 onClick={() => setStep(step - 1)}
-                className="p-1 -ml-1 rounded-lg hover:bg-muted/40 shrink-0"
+                className="p-1 -ml-1 rounded-lg hover:bg-gray-100 shrink-0"
                 aria-label="Back"
               >
                 <ArrowLeft className="size-4" />
               </button>
             )}
-            <SheetHeader className="text-left flex-1">
-              <SheetTitle>
-                {step === 1 && 'Log a visit'}
-                {step === 2 && 'Upload documents'}
-                {step === 3 && 'Review visit details'}
-                {step === 4 && 'Ready to save'}
-              </SheetTitle>
-            </SheetHeader>
+            <h2 className="text-base font-semibold flex-1 leading-tight">
+              {step === 1 && 'Log a visit'}
+              {step === 2 && 'Upload documents'}
+              {step === 3 && 'Review visit details'}
+              {step === 4 && 'Ready to save'}
+            </h2>
+            <button
+              onClick={() => handleOpenChange(false)}
+              className="p-1 rounded-lg hover:bg-gray-100 shrink-0"
+              aria-label="Close"
+            >
+              <X className="size-4" />
+            </button>
           </div>
           <ProgressDots current={step} total={4} />
         </div>
 
         {/* ── Zone 2: Scrollable content ────────────────────────────────── */}
         <div
-          className="flex-1 overflow-y-auto overflow-x-hidden px-5 py-5 space-y-5"
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          style={{ WebkitOverflowScrolling: 'touch' } as any}
+          className="flex-1 overflow-y-auto overflow-x-hidden px-6 py-5 space-y-5"
+          style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
         >
 
           {/* ─── STEP 1: Who and what condition? ────────────────────────── */}
@@ -505,7 +511,7 @@ export default function HealthEventLogger({
               {/* Member chips */}
               <div className="space-y-2">
                 <Label>Who visited the doctor?</Label>
-                <div className="flex gap-2 overflow-x-auto pb-1 -mx-5 px-5">
+                <div className="flex gap-2 overflow-x-auto pb-1 -mx-6 px-6">
                   {familyMembers.map((m) => {
                     const selected = m.id === selectedMemberId
                     const color = AVATAR_COLORS[m.relation ?? 'other'] ?? AVATAR_COLORS.other
@@ -1014,7 +1020,7 @@ export default function HealthEventLogger({
         </div>
 
         {/* ── Zone 3: Fixed footer — always visible ─────────────────────── */}
-        <div className="flex-shrink-0 px-5 py-3 border-t border-border bg-white">
+        <div className="flex-shrink-0 px-6 py-4 border-t border-gray-100 bg-white">
           {step === 1 && (
             <Button
               className="w-full bg-teal-600 hover:bg-teal-700"
@@ -1066,7 +1072,7 @@ export default function HealthEventLogger({
           )}
         </div>
 
-      </SheetContent>
-    </Sheet>
+      </div>
+    </div>
   )
 }
