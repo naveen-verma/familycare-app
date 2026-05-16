@@ -111,6 +111,8 @@ Phase 1 seeds this engine with:
 
 Phase 2 builds the full engine on top of this data foundation.
 
+---
+
 ### Phase 4 — IoT & Patient Safety (Months 25–36)
 **Goal:** Real-time health monitoring and patient safety
 for elderly and chronically ill family members
@@ -231,8 +233,7 @@ Enterprise:
 
 #### 4.6 Grant and Partnership Opportunities
 
-  ARDSI (Alzheimer's and Related Disorders
-  Society of India)
+  ARDSI (Alzheimer's and Related Disorders Society of India)
   HelpAge India
   NASSCOM Foundation health tech grants
   iSPIRT health stack initiatives
@@ -251,7 +252,6 @@ Before building:
 
 Estimated start: Month 25
 Target launch:   Month 34-36
-
 
 ---
 
@@ -316,7 +316,6 @@ familycare-app/
 │   ├── hooks/                   ← custom React hooks
 │   └── types/
 │       └── database.ts          ← TypeScript types for all DB tables
-
 
 ---
 
@@ -420,9 +419,7 @@ git checkout -b feature/ph1-FEATURENAME
 Build the feature
 git add . && git commit -m "feat: description"
 git push origin feature/ph1-FEATURENAME
-GitHub → New PR → feature branch → dev
-When ready: PR → dev → staging
-When confirmed: PR → staging → main
+Merge: feature → dev → staging → main (--no-ff merges at every step)
 
 ### Commit Message Convention
 feat:      new feature or screen
@@ -435,10 +432,8 @@ release:   version bump to main
 
 ### Examples
 feat: add family dashboard with member cards
-feat: add document upload to document vault
 fix: fix OTP redirect after verification
-chore: update Supabase client to latest
-style: improve mobile layout on member profile
+docs: update CLAUDE.md — v1.5.11 Phase 1.5 complete
 release: v1.5.11 — health event logger sheet fixed height
 
 ---
