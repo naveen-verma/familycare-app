@@ -253,6 +253,9 @@ export default async function MemberProfilePage({
             </div>
           </AccordionTrigger>
           <AccordionContent>
+            <div className="flex justify-end mb-3">
+              <AddConditionDialog memberId={member.id} icd10Conditions={icd10Conditions} />
+            </div>
             {conditions.length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-5 text-center">
                 <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-400">
@@ -262,9 +265,6 @@ export default async function MemberProfilePage({
               </div>
             ) : (
               <>
-                <div className="flex justify-end mb-3">
-                  <AddConditionDialog memberId={member.id} icd10Conditions={icd10Conditions} />
-                </div>
                 {conditionGroups.map((group, gi) => (
                   <div key={group.key} className={gi > 0 ? 'mt-3' : ''}>
                     <p className="text-[11px] font-medium text-muted-foreground tracking-[0.04em] mb-2">
