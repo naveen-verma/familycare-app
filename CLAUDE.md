@@ -1,222 +1,710 @@
 # FamilyCare App — Claude Code Project Context
 
 ## Sister Repository
-This project works together with the **familycare** repository
-which contains all Supabase database migrations, seed data,
-and n8n workflow configurations.
+This project works together with the **familycare** repository which 
+contains all Supabase database migrations, seed data, and n8n workflow 
+configurations. Both repos are part of the same application.
 
 - familycare-app → Frontend (this repo)
 - familycare → Database + Backend automation
 
-Always make schema changes in familycare repo first, then
-build frontend features here.
+When making schema changes, always update the familycare repo first,
+then build the frontend feature here.
 
 ---
 
 ## What FamilyCare Is
-Patient-first family health management web app for Indian
-families. One place to store, manage and share your entire
-family's medical history.
+FamilyCare is a patient-first family health management web application
+built for Indian families. It solves a real gap — when someone in the
+family is diagnosed with a critical illness, there is no single place
+to manage their medical history, find specialists, or get a second
+opinion.
 
 ## Target Users
-Indian families — primarily Android mobile. Must work on
-both mobile and desktop.
+Indian families — primarily on Android mobile devices. The app must
+work well on both mobile and desktop from day one.
 
-## Live URLs
-- Production:  https://familycare.co.in  (custom domain ✅)
-- Vercel URL:  https://familycare-app-ten.vercel.app
-- Staging:     Vercel preview on staging branch
-
----
-
-## Current Status — v1.5.4 Post Soft Launch
-
-### Infrastructure
-| Component | Status | Details |
-|---|---|---|
-| Frontend | ✅ Live | Next.js 14, Vercel, main branch |
-| Custom domain | ✅ Live | familycare.co.in → Vercel |
-| Supabase Production | ✅ Live | wpmnobisujpswvyzhulj.supabase.co |
-| Supabase Staging | ✅ Live | gqxviikkoarijhhqnnlt.supabase.co |
-| n8n Production | ✅ Live | Railway production environment |
-| n8n Staging | ✅ Live | n8n-staging-staging.up.railway.app |
-| WhatsApp | ✅ Live | MSG91, number 919217665889 |
-| Email OTP | ✅ Live | Resend, noreply@familycare.co.in |
-| Google SSO | ✅ Live | Supabase OAuth, Google Cloud Console |
-
-### Auth Methods
-1. Google SSO — primary, one tap login
-2. Email OTP — secondary, 6-digit code
-
-### n8n Workflows
-| Workflow | Purpose | Schedule | Status |
-|---|---|---|---|
-| WF1 — Medication Reminder | WhatsApp medication alerts | Hourly | ✅ Active |
-| WF2 — Document Upload Alert | WhatsApp on new upload | 30 min | ✅ Active |
-| WF4 — Follow-up Nudge | Daily follow-up reminders | 9am IST | ✅ Active |
-| WF5 — Diagnosis Enrichment | ICD-10 enrichment | 6 hours | ✅ Active |
-| WF7 — Interest Signal Tracker | Founder digest | 8am IST | ⏳ Deferred |
+## Business Model
+- Free forever for patients and families
+- Doctors, hospitals, and specialists pay for:
+  - Listing fees (Phase 2)
+  - Per-consultation platform cut (Phase 2)
+  - Featured placement for specific conditions (Phase 2)
+- Pharma and research orgs pay for anonymised aggregated data (Phase 3)
+- Built to generate revenue post-retirement — part-time managed
 
 ---
 
-## Version History
+## Product Roadmap
 
-### v1.0.0 — Phase 1 Initial Launch
-- Auth, onboarding, family management
-- Medical conditions, documents, medications
-- Document vault, timeline, secure share links
+Phase 1 — Family Medical Vault (Months 1–6)      ✅ Complete
+Phase 2 — Second Opinion Engine (Months 7–15)    🔜 Next
+Phase 3 — Full Care Ecosystem (Months 16–24)     📋 Planned
+Phase 4 — IoT & Patient Safety (Months 25–36)    💡 New
 
-### v1.1.0 — Week 15 Soft Launch Fixes
-- Fix #3: Dashboard command centre redesign
-- Fix #7: Unified doctor visit flow (5-step sheet)
-- Fix #2: Mobile UI simplification
-- Hotfix: mobile logout
+### Phase 1 — Family Medical Vault (Months 1–6)
+**Goal:** A working app where families store and manage health records
 
-### v1.2.x — Hotfixes Post Soft Launch
-- v1.2.1: Auth trigger exception handling
-- v1.2.2: Expired medications hidden from dashboard
-- v1.2.3: Deactivate expired medications migration
-- v1.2.4: Medication reminders per member mobile number
+Features:
+1. Family profile management — add members, age, blood group, conditions
+2. Document vault — upload prescriptions, reports, scans (PDF/image)
+3. Medical timeline — chronological view of health events per member
+4. Secure share link — one-tap shareable summary for doctor visits
+5. Medication tracker — current medications with dosage and reminders
+6. Basic alerts — prescription renewal reminders, follow-up nudges
+7. Structured diagnosis tagging — ICD-10 condition search dropdown
+8. Report-to-condition linking — every report tagged to a condition
+9. Second Opinion placeholder button — greyed out, logs interest
 
-### v1.3.0 — Google SSO
-- Google OAuth login added as primary sign-in
-- Email OTP kept as secondary option
-- /auth/callback route handler created
+### Phase 2 — Second Opinion Engine (Months 7–15)
+**Goal:** Connect patients with verified specialists pan-India
 
-### v1.3.1 — Google SSO Fixes
-- OAuth redirect stays on correct domain
-- Greeting shows real name from Google metadata
-- handle_new_user reads 'name' key from Google
+The Second Opinion Engine flow:
+1. Patient uploads report + tags condition
+2. AI summarises report in plain language (Claude API)
+3. Generates 5 smart questions to ask any doctor
+4. Matches to 2-3 verified specialists by condition
+5. Patient requests async second opinion (voice/document/video)
+6. Specialist responds within 48 hours
+7. Specialist gets paid — platform takes 15-20% cut
 
-### v1.4.x — Dashboard + Member Profile Polish
-- v1.4.0: Family health tabbed section on dashboard
-- v1.4.1–v1.4.3: Tab bar inside card, timeline, greeting
-- v1.4.4–v1.4.7: Member profile UI polish
-  · Condition rows use dividers not nested cards
-  · Status group labels sentence case
-  · Visit badge teal colour
-  · Empty accordion sections: icon + message, no button
-  · Phase 2 features (Find Second Opinion) hidden
-  · Closed accordions have border on all sides
-  · Critical badge style consistent
-  · Add medication button removed from accordion
+Features:
+- Specialist listing and onboarding
+- Critical illness content library (global research summaries)
+- Async second opinion request and response flow
+- Specialist search by condition (ICD-10 based)
+- Appointment booking with doctors
+- Post-operative therapist engagement
+- NGO and financial support institution directory
 
-### v1.5.x — Horizontal Timeline Redesign
-- v1.5.0: Full horizontal timeline with year rows + event pills
-- v1.5.1: Month drill-down panel with card border
-- v1.5.2: All family members in member switcher
-- v1.5.3: Document title field fix
-- v1.5.4: Stem line stretches full year row height
+Revenue unlock:
+- Specialist listing fee: ₹2,000–5,000/month
+- Per-consultation platform cut: 15–20%
+- Hospital partnerships for featured specialists
+
+### Phase 3 — Full Care Ecosystem (Months 16–24)
+**Goal:** Complete care coordination platform
+
+Features:
+- Appointments with doctors and specialists
+- Post-operative therapist booking
+- NGO / financial support institution connections
+- Emotional support network
+- Anonymised condition data marketplace (with consent)
+- Pan-India hospital and clinic network
 
 ---
 
-## Phase 1.5 — Next (Planned)
-- Profile pictures for family members
-  · Requires: avatar_url column on family_members
-  · Requires: Supabase Storage bucket member-avatars
-  · Upload UI on member edit page
-- AI document extraction (scan to auto-fill)
-  · Claude API reads uploaded prescription/report
-  · Pre-fills Add Condition form
-  · User reviews before saving — never auto-save
-- WF7 — Interest Signal Tracker
-  · Needs new MSG91 WhatsApp template for founder digest
-  · Current familycare_share_link template not suitable
+## The Wild Feature — Second Opinion Engine (Phase 2)
 
-## Phase 2 — Second Opinion Engine (Months 7–15)
-- Specialist directory and listing
-- Async second opinion request/response flow
-- Claude API health summary generation
-- Specialist search by ICD-10 condition
-- Revenue: listing fees + per-consultation cut
+This is the product's most powerful differentiator. Key insight:
+When an Indian family gets a critical diagnosis (cancer, rare disease),
+they don't know which questions to ask, which doctor to trust, or how
+to interpret reports. No one is solving this well in India.
 
-## Phase 3 — Full Care Ecosystem (Months 16–24)
-- Appointments, therapist booking, NGO directory
-- Anonymised condition data marketplace
+Phase 1 seeds this engine with:
+- Structured ICD-10 condition tagging on every record
+- Report-to-condition linking (phase2_ready flag on documents)
+- Interest signals table logging every "Find Second Opinion" tap
+- second_opinion_requested flag on medical_conditions table
+- Weekly founder digest showing top conditions people want opinions on
 
-## Phase 4 — IoT + Patient Safety (Months 25–36)
-- Glucometer, BP monitor, oximeter via BLE
-- Geofencing for dementia patients
-- Node-RED + Raspberry Pi OR smartphone-native
-  sensing (evaluate YOU(th)-style approach)
+Phase 2 builds the full engine on top of this data foundation.
+
+### Phase 4 — IoT & Patient Safety (Months 25–36)
+**Goal:** Real-time health monitoring and patient safety
+for elderly and chronically ill family members
+
+#### 4.1 Health Device Monitoring
+Real-time readings from Bluetooth health devices:
+
+- Glucometer (Accu-Chek, OneTouch BLE models)
+  → Blood sugar readings auto-logged to timeline
+  → Alert family if > 200 mg/dL or < 70 mg/dL
+  → Emergency alert if < 50 mg/dL
+
+- BP Monitor (Omron BLE models)
+  → Systolic, diastolic, pulse auto-logged
+  → Alert if systolic > 140 mmHg
+  → Emergency alert if systolic > 180 mmHg
+
+- Pulse Oximeter (any BLE fingertip model)
+  → SpO2 + heart rate auto-logged
+  → Alert if SpO2 < 94%
+  → Emergency alert if SpO2 < 90%
+
+Integration approach:
+  Mobile app reads devices via Bluetooth Low Energy
+  Node-RED on Raspberry Pi for always-on monitoring
+  All readings stored in health_readings table
+  n8n triggers WhatsApp alerts on anomalies
+
+#### 4.2 Geofencing for Dementia Patient Safety
+Real-time location monitoring for elderly patients
+with dementia or Alzheimer's disease.
+
+Context:
+  5.3 million dementia patients in India (2020)
+  Most cared for at home with no affordable
+  monitoring solution — significant unmet need
+
+How it works:
+  Family defines safe zone on map
+  Patient carries GPS tracker (Jio Tracker ~₹1,999)
+  or wears GPS-enabled smartwatch
+  Node-RED checks location every 5 minutes
+  If patient exits safe zone:
+    → Immediate WhatsApp alert to ALL family members
+    → Alert includes Google Maps link to last location
+    → Alert logged in FamilyCare dashboard
+    → Escalating alerts if not acknowledged
+
+Alert format:
+  "⚠️ [Patient name] has left the safe zone.
+   Last location: [Google Maps link]
+   Time: [timestamp]
+   Please check on them immediately.
+   - FamilyCare Safety Alert"
+
+#### 4.3 New Database Tables (Phase 4)
+
+health_readings:
+  id, family_member_id, device_type, reading_type,
+  value, unit, recorded_at, source, notes
+  device_type: glucometer | bp_monitor | oximeter
+  reading_type: blood_sugar | systolic | diastolic |
+                pulse | spo2 | heart_rate
+  source: manual | bluetooth | iot_hub | node_red
+
+geofence_zones:
+  id, family_member_id, zone_name,
+  center_lat, center_lng, radius_meters,
+  is_active, alert_on_exit, alert_on_entry
+
+location_events:
+  id, family_member_id, geofence_zone_id,
+  event_type (entered|exited),
+  latitude, longitude, recorded_at, alert_sent
+
+#### 4.4 Node-RED Workflows (Phase 4)
+
+WF-IoT-1: Blood Sugar Monitor
+  Trigger: New glucometer reading
+  Action: Store → threshold check → alert family
+
+WF-IoT-2: BP Monitor
+  Trigger: New BP reading
+  Action: Store → threshold check → alert family
+
+WF-IoT-3: Oximeter Monitor
+  Trigger: New SpO2 reading
+  Action: Store → emergency alert if SpO2 < 90%
+
+WF-IoT-4: Geofence Monitor
+  Trigger: Every 5 minutes
+  Action: Check GPS → compare geofence boundary
+          → WhatsApp alert if patient exited
+
+Architecture:
+  Raspberry Pi (~₹3,500) installed at home
+  Node-RED always running — reads devices
+  Sends data to Supabase REST API
+  n8n handles alert distribution
+
+#### 4.5 Business Model (Phase 4)
+
+Subscription:
+  IoT Plan: ₹499/month per family
+  Includes unlimited device readings,
+  real-time geofencing, weekly health reports,
+  caregiver dashboard, priority support
+
+Hardware (Phase 4+):
+  FamilyCare Hub — ₹3,999 one-time
+  Pre-configured Raspberry Pi + Node-RED
+  Plug and play — no technical setup needed
+
+Enterprise:
+  Nursing homes, old age homes, hospitals
+  Per-bed pricing model
+  EMR system integration
+
+#### 4.6 Grant and Partnership Opportunities
+
+  ARDSI (Alzheimer's and Related Disorders
+  Society of India)
+  HelpAge India
+  NASSCOM Foundation health tech grants
+  iSPIRT health stack initiatives
+  Startup India health tech scheme
+
+#### 4.7 Phase 4 Prerequisites
+
+Before building:
+  1. Complete Phase 2 and Phase 3
+  2. Interview 5+ families with diabetic elderly
+  3. Interview 3+ families with dementia patients
+  4. Validate BLE device compatibility in India
+  5. Build Android Bluetooth SDK integration
+  6. Prototype Node-RED + Raspberry Pi setup
+  7. Test geofencing with Jio Tracker API
+
+Estimated start: Month 25
+Target launch:   Month 34-36
+
 
 ---
 
 ## Tech Stack
 - Framework: Next.js 14 (App Router) with TypeScript
 - Styling: Tailwind CSS
-- UI Components: shadcn/ui
-- Database: Supabase (PostgreSQL) with RLS
-- Auth: Supabase Auth — Google SSO + Email OTP
-  - Confirm email: OFF
-  - OTP expiry: 600 seconds
+- UI Components: shadcn/ui (Nova preset — Radix + Lucide + Geist)
+- Database: Supabase (PostgreSQL) with Row Level Security
+- Auth: Supabase Auth — OTP based
+  - Development: Email OTP → check Inbucket at localhost:54324
+  - Production: Phone OTP → MSG91 WhatsApp API
 - Icons: Lucide React
-- Notifications: n8n + MSG91 WhatsApp API
-- Hosting: Vercel
+- Forms: React Hook Form + Zod (planned)
+- Notifications: n8n + MSG91 (Week 9 onwards)
+- Hosting: Vercel (free tier)
+
+---
+
+## Live Environment
+- Production URL: https://familycare-app-ten.vercel.app
+- Custom domain: https://www.familycare.co.in (live, resolves correctly)
+- Supabase (staging): gqxviikkoarijhhqnnlt.supabase.co
+- n8n (staging): https://n8n-staging-staging.up.railway.app
+- Email: noreply@familycare.co.in via Resend SMTP
+- WhatsApp: MSG91, sandbox number 15559209991
+- Auth: Email OTP via Supabase (staging mode)
 
 ---
 
 ## Project Structure
 familycare-app/
-├── CLAUDE.md
-├── middleware.ts
+├── CLAUDE.md                    ← you are here
+├── middleware.ts                ← auth session management
 ├── src/
 │   ├── app/
-│   │   ├── auth/callback/route.ts   ← Google OAuth handler
-│   │   ├── (auth)/
-│   │   │   ├── login/               ← Google SSO + OTP
-│   │   │   └── onboarding/          ← 2-step new user setup
-│   │   └── (dashboard)/
-│   │       ├── dashboard/           ← command centre
-│   │       ├── family/              ← member list
-│   │       ├── members/[id]/        ← member profile
-│   │       ├── documents/           ← document vault
-│   │       ├── documents/upload/
-│   │       ├── medications/
-│   │       ├── medications/add/
-│   │       ├── timeline/            ← horizontal timeline
-│   │       ├── share/
-│   │       └── visits/              ← doctor visit flow
+│   │   ├── (auth)/              ← unauthenticated screens
+│   │   │   ├── login/           ← mobile/email entry
+│   │   │   ├── verify/          ← OTP verification
+│   │   │   └── onboarding/      ← new user setup (2 steps)
+│   │   └── (dashboard)/         ← authenticated screens
+│   │       ├── dashboard/       ← family overview
+│   │       ├── members/         ← family member list + add
+│   │       ├── members/[id]/    ← individual member profile
+│   │       ├── documents/       ← document vault
+│   │       ├── medications/     ← medication tracker
+│   │       └── timeline/        ← medical event timeline
 │   ├── components/
-│   │   ├── dashboard/
-│   │   │   ├── FamilyHealthTabs.tsx ← new tabbed section
-│   │   │   ├── TodaysMedications.tsx
-│   │   │   ├── HealthAlertsSection.tsx
-│   │   │   ├── QuickActionsBar.tsx
-│   │   │   └── DoctorVisitFAB.tsx
-│   │   ├── visits/
-│   │   │   └── LogVisitSheet.tsx    ← 5-step sheet
-│   │   ├── members/
-│   │   ├── documents/
-│   │   ├── medications/
-│   │   └── conditions/
-│   ├── hooks/
-│   │   └── useDashboardData.ts
+│   │   ├── ui/                  ← shadcn/ui components
+│   │   ├── layout/              ← navigation, sidebar, header
+│   │   ├── members/             ← family member components
+│   │   ├── documents/           ← document vault components
+│   │   ├── medications/         ← medication tracker components
+│   │   ├── conditions/          ← medical condition components
+│   │   └── health-event-logger/ ← 4-step log visit flow (v1.5.9)
 │   ├── lib/
 │   │   ├── supabase/
-│   │   │   ├── client.ts
-│   │   │   ├── server.ts
-│   │   │   └── middleware.ts
-│   │   └── auth.ts                  ← signInWithGoogle()
+│   │   │   ├── client.ts        ← browser client
+│   │   │   ├── server.ts        ← server client
+│   │   │   └── middleware.ts    ← session updater
+│   │   ├── user.ts              ← user profile helpers
+│   │   └── onboarding.ts        ← onboarding data functions
+│   ├── hooks/                   ← custom React hooks
 │   └── types/
-│       └── database.ts
+│       └── database.ts          ← TypeScript types for all DB tables
+
 
 ---
 
-## Database Tables
-All tables have RLS. Users see only their own family data.
+## Database Tables (in familycare repo)
+All tables have RLS enabled. Users only see their own family data.
 
 | Table | Purpose |
 |---|---|
-| users | Auth users, supabase_auth_id FK |
-| family_groups | One per user, group_name column |
-| family_members | full_name column (NOT name) |
-| icd10_conditions | 84 curated conditions |
-| medical_conditions | Diagnosed conditions |
-| condition_consultations | Doctor visits |
+| users | Authenticated users linked to Supabase Auth |
+| family_groups | One per user, container for the family |
+| family_members | Each person in the family |
+| icd10_conditions | Reference — 84 curated conditions for India |
+| medical_conditions | Diagnosed conditions per family member |
 | documents | Prescriptions, reports, scans |
 | medications | Current and past medications |
-| medication_logs | Reminder tracking |
-| medical_events | Health timeline events |
-| share_links | Secure doctor share links |
-| interest_signals | Phase 2 seed d
+| medication_logs | Reminder acknowledgement tracking |
+| medical_events | Health timeline — visits, surgeries, tests |
+| health_events | Visit/event records linked to family_members (v1.5.9) |
+| health_event_documents | Documents attached to health events (v1.5.9) |
+| health_event_medications | Medications prescribed at a health event (v1.5.9) |
+| share_links | Secure time-limited doctor share links |
+| interest_signals | Phase 2 seed — second opinion interest tracking |
+
+## Database Helper Functions
+- has_completed_onboarding(user_auth_id) → boolean
+- get_current_user_profile() → json
+- get_due_medication_reminders() → table (for n8n)
+- get_due_followups() → table (for n8n)
+- get_pending_interest_signals() → table (for n8n)
+- deactivate_expired_share_links() → void (for n8n)
+
+## Critical Database Rules
+- Always use `user_id` (UUID) to link profiles to auth.users — NEVER `id`
+- RLS enabled on all tables — never bypass with service role in frontend
+- Column names are snake_case throughout
+- Never use `.single()` on queries that could return 0 rows — use `.maybeSingle()`
+- CHECK constraints exist on status/type enum columns — check before inserting
+
+---
+
+## Auth Flow
+User enters email (dev) or mobile number (prod)
+↓
+OTP sent → verify page
+↓
+Supabase Auth creates user
+↓
+DB trigger (handle_new_user) auto-creates:
+→ public.users record
+→ public.family_groups record
+↓
+has_completed_onboarding() checked
+↓
+false → /onboarding    true → /dashboard
+↓
+Step 1: Full name, mobile, city, state
+Step 2: DOB, gender, blood group
+↓
+family_members record created (relation=self, is_primary=true)
+↓
+/dashboard
+
+---
+
+## Environment Variables
+NEXT_PUBLIC_SUPABASE_URL       local: http://127.0.0.1:54321
+NEXT_PUBLIC_SUPABASE_ANON_KEY  from supabase status
+NEXT_PUBLIC_APP_NAME           FamilyCare
+NEXT_PUBLIC_APP_ENV            development | staging | production
+
+USE_PHONE_AUTH constant in auth pages:
+- false when APP_ENV = development (uses email OTP)
+- true when APP_ENV = production (uses phone OTP)
+
+---
+
+## GitHub Branch Strategy
+
+### Branch Structure
+main       ← production only, protected, never push directly
+staging    ← pre-release testing
+dev        ← active development base, default branch
+feature/   ← individual feature branches
+
+### Branch Naming Convention
+feature/ph1-auth-trigger
+feature/ph1-dashboard-layout
+feature/ph1-family-dashboard
+feature/ph1-member-profile
+feature/ph1-document-vault
+feature/ph1-medications
+feature/ph1-timeline
+feature/ph1-share-links
+feature/ph1-second-opinion
+feature/ph1.5-health-event-logger  ← Phase 1.5 example
+feature/ph2-specialist-listing     ← Phase 2 example
+
+### Standard Flow for Every Feature
+git checkout dev && git pull origin dev
+git checkout -b feature/ph1-FEATURENAME
+Build the feature
+git add . && git commit -m "feat: description"
+git push origin feature/ph1-FEATURENAME
+GitHub → New PR → feature branch → dev
+When ready: PR → dev → staging
+When confirmed: PR → staging → main
+
+### Commit Message Convention
+feat:      new feature or screen
+fix:       bug fix
+chore:     setup, config, dependencies
+docs:      documentation updates
+style:     UI/styling changes only
+refactor:  code restructure, no feature change
+release:   version bump to main
+
+### Examples
+feat: add family dashboard with member cards
+feat: add document upload to document vault
+fix: fix OTP redirect after verification
+chore: update Supabase client to latest
+style: improve mobile layout on member profile
+release: v1.5.11 — health event logger sheet fixed height
+
+---
+
+## Current Development Status
+
+### Current Version: v1.5.11
+
+### Phase 1 — Complete ✅
+Core app live on Vercel production and custom domain.
+Week 14 internal testing complete.
+
+### Phase 1.5 — Complete ✅
+Internal testing fixes implemented and shipped.
+
+**v1.5.5** — Profile pictures with crop tool
+- Avatar upload with crop/zoom UI on member profile page
+- Stored in Supabase Storage bucket: member-avatars
+- Displayed in member cards and profile header
+
+**v1.5.6** — Add member avatar freeze fix
+- Fixed sheet freezing when adding new member with avatar
+- Race condition in avatar upload during member creation resolved
+
+**v1.5.8** — AI extraction reverted from document upload page
+- Removed AI auto-extraction from the document upload flow
+- Document upload now saves file only, no extraction on upload
+- AI extraction remains in the roadmap (see Planned UX Enhancements)
+
+**v1.5.9** — Health Event Logger (Log Visit rebuilt as 4-step flow)
+- Replaced old Log Visit sheet with 4-step Health Event Logger
+- Step 1: Select member + visit type + conditions
+- Step 2: Upload documents (optional)
+- Step 3: Add medications prescribed
+- Step 4: Review and save
+- Saves to health_events table with linked documents and medications
+
+**v1.5.10** — Add condition button in empty state
+- When member has no conditions, empty state now shows "Add Condition" button
+- Directly opens add condition sheet from within Health Event Logger Step 1
+
+**v1.5.11** — Health Event Logger fixed height sheet
+- Sheet height locked to 85vh / maxHeight 85vh across all steps
+- overflow-hidden on sheet, overflow-y-auto on content zone
+- Header (flex-shrink-0) and footer/Next button (flex-shrink-0) always visible
+- Sheet height identical regardless of data volume or step number
+
+### Previously Completed (Phase 1) ✅
+- Dev/staging/prod environment setup
+- 13 database migrations with full RLS
+- 84 ICD-10 conditions seeded
+- Auth trigger — auto-creates user + family group on signup
+- Login page — email OTP (dev) / phone OTP (prod)
+- OTP verify page — 6-box input with auto-focus
+- Onboarding page — 2 step flow (personal + health details)
+- Family profile management — add/edit family members
+- Medical conditions tagging with ICD-10
+- Document vault — file upload to Supabase Storage
+- Medication tracker — add, edit, reminder toggle
+- Medical timeline — chronological event view
+- Secure share link — generate and send to doctor
+- Second Opinion placeholder button — logs interest signal
+- PWA setup — mobile home screen install
+- Vercel deployment + custom domain familycare.co.in live
+- Google SSO (v1.3.0)
+- Dashboard family health tabs (v1.4.0)
+- Member profile UI polish (v1.4.7)
+- Horizontal timeline redesign (v1.5.4)
+
+### Pending ⏳
+1. WF7 — get MSG91 template approved for production, replace placeholder node
+2. Tester update email — announce v1.5.5 through v1.5.11 features
+3. Phase 2 scoping — Second Opinion Engine
+4. Production n8n setup on Railway
+
+---
+
+## n8n Workflows (Staging)
+
+| Workflow | Status | Notes |
+|---|---|---|
+| WF1 — Medication Reminder | ✅ Active, tested | MSG91 WhatsApp working |
+| WF2 — Document Upload Alert | ⚠️ Built | MSG91 placeholder — needs template |
+| WF4 — Follow-up Nudge | ⚠️ Built | MSG91 placeholder — needs template |
+| WF5 — Diagnosis Enrichment | ⚠️ Built | Needs review |
+| WF7 — Interest Signal Tracker | ⚠️ Built | MSG91 placeholder — needs production template |
+
+---
+
+## Component Patterns — Do Not Change Without Discussion
+
+### Bottom Sheet Rules
+- All bottom sheets use fixed height: height 85vh + maxHeight 85vh + overflow-hidden
+- Content zone inside sheets: flex-1 + overflow-y-auto
+- Header inside sheets: flex-shrink-0 — never moves
+- Footer/action buttons inside sheets: flex-shrink-0 bg-white — always at bottom
+- Sheet height must be identical across all steps and all data volumes
+
+### General UI Rules
+- Mobile-first: all primary actions reachable with one thumb
+- No horizontal scroll anywhere in the app
+- Loading states on all async operations
+- Toast notifications for success/error (sonner)
+- Soft deletes everywhere — use deleted_at, never hard delete rows
+- RLS on every table — never bypass with service role in frontend
+- ICD-10 structured tagging — always link conditions to icd10_conditions
+- Phase 2 seeds — second_opinion_requested and phase2_ready columns
+  exist now and must be set correctly even in Phase 1
+- Indian mobile numbers only — always prefix +91
+- Tailwind + shadcn/ui only — no other CSS frameworks
+- No direct DB schema changes — all changes via migration files
+  in the familycare repo
+
+---
+
+## Post-Deployment Checklist
+
+Run these checks after every push to staging or production.
+
+### Supabase Auth Settings (check after every db push)
+Supabase can reset auth settings after project re-linking.
+Verify in BOTH staging and production Supabase dashboards:
+
+Authentication → Providers → Email:
+  ✅ Enable Email provider     ON
+  ❌ Confirm email             OFF  ← resets to ON after db push
+  ✅ Enable Email OTP          ON
+  ✅ OTP Expiry                600 seconds
+
+Authentication → URL Configuration:
+  Site URL:      https://familycare-app-ten.vercel.app
+  Redirect URLs: https://familycare-app-ten.vercel.app/**
+
+If new users receive "Confirm Your Signup" link instead of OTP:
+  → Confirm email is ON — turn it OFF immediately
+  → This is the most common post-deployment auth issue
+
+### Vercel Deployment
+  ✅ Check Vercel dashboard — deployment status green
+  ✅ Test login flow with a new email on staging
+
+---
+
+## Planned UX Enhancements — Not Yet Built
+
+These features are planned but not yet built. Claude Code should be
+aware of these when building related features so the foundation is
+laid correctly.
+
+---
+
+### 1. AI Document Extraction (Scan to Auto-Fill)
+
+When to build: Phase 2 — not during document upload
+Status: Reverted from upload flow in v1.5.8 — will be re-introduced
+        as a dedicated review step, not inline with upload
+
+How it works:
+- User uploads a prescription or report
+- Optional button appears: "Extract details with AI"
+- Calls Claude API (claude-sonnet-4-20250514) with the uploaded image/PDF
+- Claude extracts structured data and pre-fills the Add Condition form
+- User reviews all extracted fields before saving — never auto-save
+
+Fields that can be extracted:
+- Doctor name → diagnosed_by in medical_conditions
+- Hospital/Clinic name → hospital_name in documents
+- Date of visit → diagnosed_on in medical_conditions
+- Condition/diagnosis name → matched to icd10_conditions or custom_name
+- Medications prescribed → pre-fills medication name, dosage
+- Notes/instructions → notes field
+
+Fields NOT to auto-extract (user must set manually):
+- Status (chronic/active/monitoring/resolved) — default to 'active'
+- Family member — user must confirm which member this is for
+
+Implementation notes:
+- Use Claude API already integrated in the project
+- Send image as base64 with media_type image/jpeg or image/png
+- For PDFs convert first page to image before sending
+- Always show extracted data in a review step before saving
+- Mark extracted fields visually so user knows what was auto-filled
+- This feeds Phase 2 — extracted structured data improves
+  Second Opinion Engine matching accuracy
+
+---
+
+### 2. Height, Weight and BMI Tracking
+
+When to build: As enhancement to Member Profile page
+Location: src/app/(dashboard)/members/[id]/page.tsx
+
+Database change needed (add migration in familycare repo):
+- Add to family_members table:
+  height_cm     numeric (e.g. 170.5)
+  weight_kg     numeric (e.g. 68.0)
+  bmi           numeric (calculated, stored for history)
+  bmi_date      date (date of measurement)
+
+BMI Calculation:
+  BMI = weight_kg / (height_cm / 100)^2
+
+Use Indian BMI Classification (WHO Asia-Pacific guidelines)
+NOT Western cutoffs — Indian thresholds are lower:
+  Underweight   < 18.5
+  Normal        18.5 – 22.9
+  Overweight    23.0 – 24.9
+  Obese Class I   25.0 – 29.9
+  Obese Class II  ≥ 30.0
+
+UI:
+- Add Height and Weight fields to member profile edit form
+- Auto-calculate and display BMI with colour-coded classification badge:
+  Underweight → blue
+  Normal      → green
+  Overweight  → yellow
+  Obese I     → orange
+  Obese II    → red
+- Show date of last measurement
+- Future Phase 2: track BMI over time as a trend chart
+
+Why Indian cutoffs matter:
+Indian populations have higher metabolic risk at lower BMI values
+than Western populations. Using standard WHO cutoffs (24.9 = normal)
+would incorrectly classify many at-risk Indian users as healthy.
+
+---
+
+### 3. Medical Condition Display Order — Pin to Top
+
+When to build: As enhancement to Member Profile and Document Vault
+Default sort: Descending by diagnosed_on date (most recent first)
+
+Database change needed (add migration in familycare repo):
+- Add to medical_conditions table:
+  is_pinned   boolean not null default false
+
+Pin behaviour:
+- Pinned conditions always appear first, regardless of date
+- Within pinned conditions: sort by diagnosed_on descending
+- Within unpinned conditions: sort by diagnosed_on descending
+- User can pin/unpin via a pin icon on each condition card
+- Maximum pins: no limit — user decides what matters most
+
+UI:
+- Show pin icon (Lucide Pin icon) on each condition card
+- Filled pin icon = pinned (indigo colour)
+- Outline pin icon = unpinned (grey)
+- Pinned conditions show a subtle "Pinned" indicator
+- Pin/unpin is a single click — no confirmation needed
+- Pinned conditions appear in both Member Profile and Document Vault
+
+Sort order rule to implement everywhere conditions are listed:
+  ORDER BY is_pinned DESC, diagnosed_on DESC
+
+---
+
+### 4. Document Vault — AI Extraction Entry Point
+
+When building Document Vault upload form, add a placeholder for
+the AI extraction feature even if not fully built yet:
+
+- After file is selected in upload form, show a button:
+  "✨ Extract details from document"
+- In Phase 1 this can show "Coming soon" or be disabled
+- The button should be in the correct position in the UI so
+  it does not need to be moved when AI extraction is built
+
+This avoids a UI restructure later when extraction is implemented.
