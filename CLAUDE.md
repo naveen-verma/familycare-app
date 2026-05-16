@@ -37,7 +37,7 @@ work well on both mobile and desktop from day one.
 
 ## Product Roadmap
 
-Phase 1 — Family Medical Vault (Months 1–6)      ✅ Built
+Phase 1 — Family Medical Vault (Months 1–6)      ✅ Complete
 Phase 2 — Second Opinion Engine (Months 7–15)    🔜 Next
 Phase 3 — Full Care Ecosystem (Months 16–24)     📋 Planned
 Phase 4 — IoT & Patient Safety (Months 25–36)    💡 New
@@ -270,6 +270,17 @@ Target launch:   Month 34-36
 
 ---
 
+## Live Environment
+- Production URL: https://familycare-app-ten.vercel.app
+- Custom domain: https://www.familycare.co.in (live, resolves correctly)
+- Supabase (staging): gqxviikkoarijhhqnnlt.supabase.co
+- n8n (staging): https://n8n-staging-staging.up.railway.app
+- Email: noreply@familycare.co.in via Resend SMTP
+- WhatsApp: MSG91, sandbox number 15559209991
+- Auth: Email OTP via Supabase (staging mode)
+
+---
+
 ## Project Structure
 familycare-app/
 ├── CLAUDE.md                    ← you are here
@@ -293,7 +304,8 @@ familycare-app/
 │   │   ├── members/             ← family member components
 │   │   ├── documents/           ← document vault components
 │   │   ├── medications/         ← medication tracker components
-│   │   └── conditions/          ← medical condition components
+│   │   ├── conditions/          ← medical condition components
+│   │   └── health-event-logger/ ← 4-step log visit flow (v1.5.9)
 │   ├── lib/
 │   │   ├── supabase/
 │   │   │   ├── client.ts        ← browser client
@@ -322,6 +334,9 @@ All tables have RLS enabled. Users only see their own family data.
 | medications | Current and past medications |
 | medication_logs | Reminder acknowledgement tracking |
 | medical_events | Health timeline — visits, surgeries, tests |
+| health_events | Visit/event records linked to family_members (v1.5.9) |
+| health_event_documents | Documents attached to health events (v1.5.9) |
+| health_event_medications | Medications prescribed at a health event (v1.5.9) |
 | share_links | Secure time-limited doctor share links |
 | interest_signals | Phase 2 seed — second opinion interest tracking |
 
@@ -332,6 +347,13 @@ All tables have RLS enabled. Users only see their own family data.
 - get_due_followups() → table (for n8n)
 - get_pending_interest_signals() → table (for n8n)
 - deactivate_expired_share_links() → void (for n8n)
+
+## Critical Database Rules
+- Always use `user_id` (UUID) to link profiles to auth.users — NEVER `id`
+- RLS enabled on all tables — never bypass with service role in frontend
+- Column names are snake_case throughout
+- Never use `.single()` on queries that could return 0 rows — use `.maybeSingle()`
+- CHECK constraints exist on status/type enum columns — check before inserting
 
 ---
 
@@ -389,7 +411,8 @@ feature/ph1-medications
 feature/ph1-timeline
 feature/ph1-share-links
 feature/ph1-second-opinion
-feature/ph2-specialist-listing    ← Phase 2 example
+feature/ph1.5-health-event-logger  ← Phase 1.5 example
+feature/ph2-specialist-listing     ← Phase 2 example
 
 ### Standard Flow for Every Feature
 git checkout dev && git pull origin dev
@@ -408,6 +431,7 @@ chore:     setup, config, dependencies
 docs:      documentation updates
 style:     UI/styling changes only
 refactor:  code restructure, no feature change
+release:   version bump to main
 
 ### Examples
 feat: add family dashboard with member cards
@@ -415,12 +439,54 @@ feat: add document upload to document vault
 fix: fix OTP redirect after verification
 chore: update Supabase client to latest
 style: improve mobile layout on member profile
+release: v1.5.11 — health event logger sheet fixed height
 
 ---
 
 ## Current Development Status
 
-### Completed ✅
+### Current Version: v1.5.11
+
+### Phase 1 — Complete ✅
+Core app live on Vercel production and custom domain.
+Week 14 internal testing complete.
+
+### Phase 1.5 — Complete ✅
+Internal testing fixes implemented and shipped.
+
+**v1.5.5** — Profile pictures with crop tool
+- Avatar upload with crop/zoom UI on member profile page
+- Stored in Supabase Storage bucket: member-avatars
+- Displayed in member cards and profile header
+
+**v1.5.6** — Add member avatar freeze fix
+- Fixed sheet freezing when adding new member with avatar
+- Race condition in avatar upload during member creation resolved
+
+**v1.5.8** — AI extraction reverted from document upload page
+- Removed AI auto-extraction from the document upload flow
+- Document upload now saves file only, no extraction on upload
+- AI extraction remains in the roadmap (see Planned UX Enhancements)
+
+**v1.5.9** — Health Event Logger (Log Visit rebuilt as 4-step flow)
+- Replaced old Log Visit sheet with 4-step Health Event Logger
+- Step 1: Select member + visit type + conditions
+- Step 2: Upload documents (optional)
+- Step 3: Add medications prescribed
+- Step 4: Review and save
+- Saves to health_events table with linked documents and medications
+
+**v1.5.10** — Add condition button in empty state
+- When member has no conditions, empty state now shows "Add Condition" button
+- Directly opens add condition sheet from within Health Event Logger Step 1
+
+**v1.5.11** — Health Event Logger fixed height sheet
+- Sheet height locked to 85vh / maxHeight 85vh across all steps
+- overflow-hidden on sheet, overflow-y-auto on content zone
+- Header (flex-shrink-0) and footer/Next button (flex-shrink-0) always visible
+- Sheet height identical regardless of data volume or step number
+
+### Previously Completed (Phase 1) ✅
 - Dev/staging/prod environment setup
 - 13 database migrations with full RLS
 - 84 ICD-10 conditions seeded
@@ -428,32 +494,54 @@ style: improve mobile layout on member profile
 - Login page — email OTP (dev) / phone OTP (prod)
 - OTP verify page — 6-box input with auto-focus
 - Onboarding page — 2 step flow (personal + health details)
-- Dashboard placeholder page
 - Family profile management — add/edit family members
 - Medical conditions tagging with ICD-10
+- Document vault — file upload to Supabase Storage
+- Medication tracker — add, edit, reminder toggle
+- Medical timeline — chronological event view
+- Secure share link — generate and send to doctor
+- Second Opinion placeholder button — logs interest signal
+- PWA setup — mobile home screen install
+- Vercel deployment + custom domain familycare.co.in live
+- Google SSO (v1.3.0)
+- Dashboard family health tabs (v1.4.0)
+- Member profile UI polish (v1.4.7)
+- Horizontal timeline redesign (v1.5.4)
 
-
-### In Progress 🔄
-- Onboarding flow testing and bug fixes
-- Document Vault — file upload to Supabase Storage
-
-### Up Next (in priority order) ⏳
-1. Fix onboarding build error (user.ts export)
-2. Dashboard layout shell — navigation, sidebar, header
-3. Screen 2 — Family dashboard (member list + add member)
-4. Screen 3 — Member profile + conditions + documents
-5. Document vault — file upload to Supabase Storage
-6. Medication tracker — add, edit, reminder toggle
-7. Medical timeline — chronological event view
-8. Secure share link — generate and send to doctor
-9. Second Opinion placeholder button — logs interest signal
-10. PWA setup — mobile home screen install
-11. Vercel deployment setup
-12. Doctor waitlist landing page
+### Pending ⏳
+1. WF7 — get MSG91 template approved for production, replace placeholder node
+2. Tester update email — announce v1.5.5 through v1.5.11 features
+3. Phase 2 scoping — Second Opinion Engine
+4. Production n8n setup on Railway
 
 ---
 
-## Key Design Decisions — Do Not Change Without Discussion
+## n8n Workflows (Staging)
+
+| Workflow | Status | Notes |
+|---|---|---|
+| WF1 — Medication Reminder | ✅ Active, tested | MSG91 WhatsApp working |
+| WF2 — Document Upload Alert | ⚠️ Built | MSG91 placeholder — needs template |
+| WF4 — Follow-up Nudge | ⚠️ Built | MSG91 placeholder — needs template |
+| WF5 — Diagnosis Enrichment | ⚠️ Built | Needs review |
+| WF7 — Interest Signal Tracker | ⚠️ Built | MSG91 placeholder — needs production template |
+
+---
+
+## Component Patterns — Do Not Change Without Discussion
+
+### Bottom Sheet Rules
+- All bottom sheets use fixed height: height 85vh + maxHeight 85vh + overflow-hidden
+- Content zone inside sheets: flex-1 + overflow-y-auto
+- Header inside sheets: flex-shrink-0 — never moves
+- Footer/action buttons inside sheets: flex-shrink-0 bg-white — always at bottom
+- Sheet height must be identical across all steps and all data volumes
+
+### General UI Rules
+- Mobile-first: all primary actions reachable with one thumb
+- No horizontal scroll anywhere in the app
+- Loading states on all async operations
+- Toast notifications for success/error (sonner)
 - Soft deletes everywhere — use deleted_at, never hard delete rows
 - RLS on every table — never bypass with service role in frontend
 - ICD-10 structured tagging — always link conditions to icd10_conditions
@@ -494,7 +582,7 @@ If new users receive "Confirm Your Signup" link instead of OTP:
 
 ---
 
-## Planned UX Enhancements — Phase 1
+## Planned UX Enhancements — Not Yet Built
 
 These features are planned but not yet built. Claude Code should be
 aware of these when building related features so the foundation is
@@ -504,8 +592,9 @@ laid correctly.
 
 ### 1. AI Document Extraction (Scan to Auto-Fill)
 
-When to build: During or after Document Vault feature
-Location: Integrated into document upload flow
+When to build: Phase 2 — not during document upload
+Status: Reverted from upload flow in v1.5.8 — will be re-introduced
+        as a dedicated review step, not inline with upload
 
 How it works:
 - User uploads a prescription or report
