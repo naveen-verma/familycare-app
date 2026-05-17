@@ -11,6 +11,7 @@ export default async function MedicationsPage() {
       full_name: m.full_name,
       relation: m.relation ?? null,
       is_primary: m.is_primary,
+      avatar_url: m.avatar_url ?? null,
       medications: await getMedicationsForMember(m.id),
     }))
   )

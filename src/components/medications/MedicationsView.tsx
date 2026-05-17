@@ -5,16 +5,17 @@ import Link from 'next/link'
 import { toggleReminderAction } from '@/app/(dashboard)/medications/actions'
 import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Pill, Clock, Calendar, User, Bell, BellOff, Edit, Plus, ChevronDown, Search } from 'lucide-react'
+import { Pill, Clock, Calendar, User, Bell, BellOff, Edit, Plus, ChevronDown } from 'lucide-react'
 import type { MedicationWithCondition } from '@/lib/medication-utils'
 import { getConditionName, isMedicationActive, frequencyLabel } from '@/lib/medication-utils'
+import { MemberAvatar } from '@/components/members/MemberAvatar'
 
 type MemberWithMeds = {
   id: string
   full_name: string
   relation: string | null
   is_primary: boolean
+  avatar_url: string | null
   medications: MedicationWithCondition[]
 }
 
@@ -68,7 +69,6 @@ function MedicationCard({ medication }: { medication: MedicationWithCondition })
 
   return (
     <div className="rounded-xl border bg-card p-3 space-y-2">
-      {/* Header — always visible */}
       <div className="flex items-center gap-2.5 min-h-[44px]">
         <div className="size-9 rounded-lg bg-teal-50 flex items-center justify-center shrink-0">
           <Pill className="size-4 text-teal-600" />
@@ -83,15 +83,12 @@ function MedicationCard({ medication }: { medication: MedicationWithCondition })
             </Link>
             <span
               className={`inline-flex h-4 items-center rounded-full px-1.5 text-[10px] font-medium ${
-                active
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-gray-100 text-gray-600'
+                active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
               }`}
             >
               {active ? 'Active' : 'Inactive'}
             </span>
           </div>
-          {/* Dosage · frequency on one compact line */}
           <p className="text-xs text-muted-foreground mt-0.5 truncate">
             {[medication.dosage, medication.frequency ? frequencyLabel(medication.frequency) : null]
               .filter(Boolean)
@@ -99,7 +96,6 @@ function MedicationCard({ medication }: { medication: MedicationWithCondition })
           </p>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          {/* Reminder dot */}
           <span
             className={`size-2 rounded-full ${reminderOn ? 'bg-green-500' : 'bg-gray-300'}`}
             title={reminderOn ? 'Reminders on' : 'Reminders off'}
@@ -112,7 +108,6 @@ function MedicationCard({ medication }: { medication: MedicationWithCondition })
         </div>
       </div>
 
-      {/* Secondary info — hidden on mobile, shown on sm: */}
       <div className="hidden sm:block space-y-1.5">
         {(medication.frequency || conditionName) && (
           <div className="flex flex-wrap gap-1.5">
@@ -148,7 +143,6 @@ function MedicationCard({ medication }: { medication: MedicationWithCondition })
         </div>
       </div>
 
-      {/* Reminder toggle */}
       <div className="flex items-center gap-2 pt-1 border-t">
         <Switch checked={reminderOn} onCheckedChange={handleReminderToggle} disabled={toggling} aria-label="Toggle reminder" />
         <span className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -209,8 +203,7 @@ function MemberAccordionSection({
 }
 
 export function MedicationsView({ memberMeds }: { memberMeds: MemberWithMeds[] }) {
-  const [statusFilter, setStatusFilter] = useState<'active' | 'all'>('active')
-  const [nameFilter, setNameFilter] = useState('')
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
   const [openMemberIds, setOpenMemberIds] = useState<Set<string>>(
     () => new Set(memberMeds.map((m) => m.id))
   )
@@ -232,24 +225,28 @@ export function MedicationsView({ memberMeds }: { memberMeds: MemberWithMeds[] }
 
   const hasAnyMedications = memberMeds.some((m) => m.medications.length > 0)
 
-  // Sort: primary member first, then alphabetical
+  // Primary first, then alphabetical
   const sortedMemberMeds = [...memberMeds].sort((a, b) => {
     if (a.is_primary && !b.is_primary) return -1
     if (!a.is_primary && b.is_primary) return 1
     return a.full_name.localeCompare(b.full_name)
   })
 
-  // Apply status + name filters, then hide members with 0 results
+  // Apply member filter; each section shows all its medications
   const processedMemberMeds = sortedMemberMeds
-    .map((m) => ({
-      ...m,
-      filteredMedications: m.medications
-        .filter((med) => statusFilter === 'active' ? isMedicationActive(med) : true)
-        .filter((med) =>
-          nameFilter === '' || med.name.toLowerCase().includes(nameFilter.toLowerCase())
-        ),
-    }))
+    .filter((m) => selectedMemberId === null || m.id === selectedMemberId)
+    .map((m) => ({ ...m, filteredMedications: m.medications }))
     .filter((m) => m.filteredMedications.length > 0)
+
+  function selectMember(id: string) {
+    if (selectedMemberId === id) {
+      setSelectedMemberId(null)
+    } else {
+      setSelectedMemberId(id)
+      // Auto-expand the selected member's accordion
+      setOpenMemberIds((prev) => new Set([...prev, id]))
+    }
+  }
 
   function toggleMember(id: string) {
     setOpenMemberIds((prev) => {
@@ -260,38 +257,58 @@ export function MedicationsView({ memberMeds }: { memberMeds: MemberWithMeds[] }
     })
   }
 
+  const selectedMember = selectedMemberId
+    ? sortedMemberMeds.find((m) => m.id === selectedMemberId)
+    : null
+
   return (
     <div className="relative">
-      {/* Name search input */}
-      <div className="relative mb-4">
-        <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground pointer-events-none" />
-        <Input
-          placeholder="Search medications..."
-          value={nameFilter}
-          onChange={(e) => setNameFilter(e.target.value)}
-          className="pl-8"
-        />
+      {/* Member pill filter row */}
+      <div
+        className="flex gap-2 overflow-x-auto pb-2 mb-5 -mx-4 px-4 sm:mx-0 sm:px-0"
+        style={{ scrollbarWidth: 'none' } as React.CSSProperties}
+      >
+        {/* All pill */}
+        <button
+          type="button"
+          onClick={() => setSelectedMemberId(null)}
+          className={`shrink-0 px-3 rounded-full text-xs font-medium transition-colors min-h-[36px] border ${
+            selectedMemberId === null
+              ? 'bg-primary text-primary-foreground border-primary'
+              : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'
+          }`}
+        >
+          All
+        </button>
+
+        {/* One pill per member */}
+        {sortedMemberMeds.map((m, i) => {
+          const isSelected = selectedMemberId === m.id
+          const firstName = m.full_name.split(' ')[0]
+          return (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => selectMember(m.id)}
+              className={`shrink-0 flex items-center gap-1.5 pl-1 pr-3 rounded-full text-xs font-medium transition-colors min-h-[36px] border ${
+                isSelected
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'
+              }`}
+            >
+              <MemberAvatar
+                name={m.full_name}
+                avatarUrl={m.avatar_url}
+                size={24}
+                colorIndex={i}
+              />
+              {firstName}
+            </button>
+          )
+        })}
       </div>
 
-      {/* Status filter chips */}
-      <div className="flex gap-2 mb-5">
-        {(['active', 'all'] as const).map((filter) => (
-          <button
-            key={filter}
-            type="button"
-            onClick={() => setStatusFilter(filter)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors min-h-[32px] ${
-              statusFilter === filter
-                ? 'bg-teal-600 text-white'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80'
-            }`}
-          >
-            {filter === 'active' ? 'Active' : 'All'}
-          </button>
-        ))}
-      </div>
-
-      {/* Member accordion sections */}
+      {/* Content area */}
       {!hasAnyMedications ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <div className="size-10 rounded-full bg-muted flex items-center justify-center mb-3">
@@ -314,9 +331,11 @@ export function MedicationsView({ memberMeds }: { memberMeds: MemberWithMeds[] }
           <div className="size-10 rounded-full bg-muted flex items-center justify-center mb-3">
             <Pill className="size-5 text-muted-foreground" />
           </div>
-          <p className="font-medium text-sm">No medications found</p>
+          <p className="font-medium text-sm">
+            No medications for {selectedMember?.full_name ?? 'this member'}
+          </p>
           <p className="text-xs text-muted-foreground mt-1">
-            {nameFilter ? 'Try a different search term' : 'All medications are inactive or ended'}
+            Add a medication to get started
           </p>
         </div>
       ) : (
