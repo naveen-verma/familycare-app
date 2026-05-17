@@ -190,6 +190,10 @@ export type SaveHealthEventInput = {
     fileSizeKb: number
     title: string
     documentType: DocumentType
+    documentDate?: string
+    doctorName?: string
+    hospitalName?: string
+    docNotes?: string
   }>
   medications: Array<{
     name: string
@@ -276,9 +280,10 @@ export async function saveHealthEventAction(
       file_url: doc.fileUrl,
       file_type: toDbFileType(doc.mimeType),
       file_size_kb: doc.fileSizeKb,
-      doctor_name: input.visitDetails.doctor_name || null,
-      hospital_name: input.visitDetails.hospital_name || null,
-      document_date: input.visitDetails.visit_date || null,
+      doctor_name: doc.doctorName || input.visitDetails.doctor_name || null,
+      hospital_name: doc.hospitalName || input.visitDetails.hospital_name || null,
+      document_date: doc.documentDate || input.visitDetails.visit_date || null,
+      notes: doc.docNotes || null,
       phase2_ready: false,
     })
     if (docError) throw docError
