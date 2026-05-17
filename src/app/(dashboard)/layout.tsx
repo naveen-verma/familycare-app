@@ -3,6 +3,7 @@ import { BottomNav } from '@/components/layout/BottomNav'
 import { MobileHeader } from '@/components/layout/MobileHeader'
 import { SessionGuard } from '@/components/layout/SessionGuard'
 import { Toaster } from '@/components/ui/sonner'
+import { SessionTimeout } from '@/components/session/SessionTimeout'
 
 export default function DashboardLayout({
   children,
@@ -20,6 +21,7 @@ export default function DashboardLayout({
         <BottomNav />
       </div>
       <Toaster />
+      <SessionTimeout />
     </SessionGuard>
   )
 }
