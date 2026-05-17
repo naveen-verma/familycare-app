@@ -40,7 +40,6 @@ const FILTER_CHIPS: { label: string; value: EventType | 'all' }[] = [
   { label: 'All',         value: 'all'        },
   { label: 'Diagnoses',   value: 'diagnosis'  },
   { label: 'Visits',      value: 'visit'      },
-  { label: 'Documents',   value: 'document'   },
   { label: 'Medications', value: 'medication' },
 ]
 
