@@ -864,7 +864,8 @@ export function LogVisitSheet({ open, onOpenChange, members, onSuccess }: LogVis
                   onClick={async () => {
                     const data = await extractFromFiles([selectedFile], documentType)
                     if (!data) return
-                    if (data.prescribed_by && !doctorName) setDoctorName(data.prescribed_by)
+                    if (data.doctor_name && !doctorName) setDoctorName(data.doctor_name)
+                    if (data.hospital_name && !hospitalName) setHospitalName(data.hospital_name)
                     if (data.visit_date && !consultationDate) setConsultationDate(data.visit_date)
                     setExtractionBanner('Details extracted — review in previous steps')
                   }}

@@ -17,9 +17,10 @@ function formatVisitDate(iso: string): string {
 
 export function ExtractionResultBanner({ data, onReviewCondition, onDismiss }: Props) {
   const fields: Array<{ label: string; value: string }> = [
-    { label: 'Prescribed by', value: data.prescribed_by ?? '' },
-    { label: 'Date',          value: data.visit_date ? formatVisitDate(data.visit_date) : '' },
-    { label: 'Medications',   value: data.medications.length > 0 ? `${data.medications.length} found` : '' },
+    { label: 'Doctor',      value: data.doctor_name   ?? '' },
+    { label: 'Hospital',    value: data.hospital_name ?? '' },
+    { label: 'Date',        value: data.visit_date ? formatVisitDate(data.visit_date) : '' },
+    { label: 'Medications', value: data.medications.length > 0 ? `${data.medications.length} found` : '' },
   ].filter((f) => f.value)
 
   return (
