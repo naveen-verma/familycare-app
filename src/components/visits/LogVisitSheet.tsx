@@ -864,13 +864,8 @@ export function LogVisitSheet({ open, onOpenChange, members, onSuccess }: LogVis
                   onClick={async () => {
                     const data = await extractFromFiles([selectedFile], documentType)
                     if (!data) return
-                    if (data.doctor_name && !doctorName) setDoctorName(data.doctor_name)
-                    if (data.hospital_name && !hospitalName) setHospitalName(data.hospital_name)
+                    if (data.prescribed_by && !doctorName) setDoctorName(data.prescribed_by)
                     if (data.visit_date && !consultationDate) setConsultationDate(data.visit_date)
-                    if (data.condition_name && conditionMode === 'skip') {
-                      setIcd10Search(data.condition_name)
-                      setConditionMode('skip')
-                    }
                     setExtractionBanner('Details extracted — review in previous steps')
                   }}
                   disabled={isExtracting}
