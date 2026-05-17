@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Stethoscope } from 'lucide-react'
+import { Stethoscope, Sparkles } from 'lucide-react'
 import HealthEventLogger from '@/components/visits/HealthEventLogger'
 import type { FamilyMemberSummary } from '@/components/dashboard/QuickActionsBar'
 
@@ -21,6 +21,7 @@ export function DoctorVisitFAB({ members, onSuccess, disabled }: DoctorVisitFABP
         disabled={disabled}
         aria-label="Log doctor visit"
         className={`
+          relative
           fixed bottom-20 right-4 md:bottom-8 md:right-8 z-40
           flex items-center gap-2
           bg-teal-600 hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed
@@ -31,6 +32,10 @@ export function DoctorVisitFAB({ members, onSuccess, disabled }: DoctorVisitFABP
       >
         <Stethoscope size={18} />
         <span className="hidden sm:inline text-sm font-medium">Log Visit</span>
+        {/* Sparkle AI badge */}
+        <span className="absolute -top-1 -right-1 size-[18px] rounded-full bg-white ring-1 ring-white shadow-sm flex items-center justify-center pointer-events-none">
+          <Sparkles className="size-[11px] text-teal-500" />
+        </span>
       </button>
 
       <HealthEventLogger
