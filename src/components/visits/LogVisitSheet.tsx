@@ -202,7 +202,7 @@ export function LogVisitSheet({ open, onOpenChange, members, onSuccess }: LogVis
   const [fileError, setFileError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [extractionBanner, setExtractionBanner] = useState<string | null>(null)
-  const { extractFromFile, isExtracting } = useDocumentExtraction()
+  const { extractFromFiles, isExtracting } = useDocumentExtraction()
 
   // Step 5
   const [medications, setMedications] = useState<MedEntry[]>([])
@@ -862,7 +862,7 @@ export function LogVisitSheet({ open, onOpenChange, members, onSuccess }: LogVis
                 <button
                   type="button"
                   onClick={async () => {
-                    const data = await extractFromFile(selectedFile, documentType)
+                    const data = await extractFromFiles([selectedFile], documentType)
                     if (!data) return
                     if (data.doctor_name && !doctorName) setDoctorName(data.doctor_name)
                     if (data.hospital_name && !hospitalName) setHospitalName(data.hospital_name)

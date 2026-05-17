@@ -19,13 +19,22 @@ export interface ExtractedDocumentData {
   language_detected: string
 }
 
+async function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve((reader.result as string).split(',')[1])
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
 export function useDocumentExtraction() {
   const [isExtracting, setIsExtracting] = useState(false)
   const [extractedData, setExtractedData] = useState<ExtractedDocumentData | null>(null)
   const [extractionError, setExtractionError] = useState<string | null>(null)
 
-  const extractFromFile = async (
-    file: File,
+  const extractFromFiles = async (
+    files: File[],
     documentType?: string
   ): Promise<ExtractedDocumentData | null> => {
     setIsExtracting(true)
@@ -33,44 +42,26 @@ export function useDocumentExtraction() {
     setExtractedData(null)
 
     try {
-      const supportedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']
-      if (!supportedTypes.includes(file.type)) {
-        throw new Error(
-          'For AI extraction, please upload an image file (JPG, PNG, or WebP). PDF extraction coming soon.'
-        )
-      }
-
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => {
-          const result = reader.result as string
-          resolve(result.split(',')[1])
-        }
-        reader.onerror = reject
-        reader.readAsDataURL(file)
-      })
-
-      const mediaType = file.type as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'
+      const fileData = await Promise.all(
+        files.map(async (file) => ({
+          base64: await fileToBase64(file),
+          mediaType: file.type,
+        }))
+      )
 
       const response = await fetch('/api/extract-document', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          imageBase64: base64,
-          mediaType,
+          files: fileData,
           documentType: documentType || 'medical document',
         }),
       })
 
-      if (!response.ok) {
-        throw new Error('Extraction request failed')
-      }
+      if (!response.ok) throw new Error('Extraction request failed')
 
       const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || 'Extraction failed')
-      }
+      if (!result.success) throw new Error(result.error || 'Extraction failed')
 
       setExtractedData(result.data)
       return result.data
@@ -90,7 +81,7 @@ export function useDocumentExtraction() {
   }
 
   return {
-    extractFromFile,
+    extractFromFiles,
     isExtracting,
     extractedData,
     extractionError,
