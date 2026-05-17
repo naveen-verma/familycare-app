@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { toggleReminderAction } from '@/app/(dashboard)/medications/actions'
 import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
-import { Pill, Clock, Calendar, User, Bell, BellOff, Edit, Plus } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Pill, Clock, Calendar, User, Bell, BellOff, Edit, Plus, ChevronDown, Search } from 'lucide-react'
 import type { MedicationWithCondition } from '@/lib/medication-utils'
 import { getConditionName, isMedicationActive, frequencyLabel } from '@/lib/medication-utils'
 
@@ -13,6 +14,7 @@ type MemberWithMeds = {
   id: string
   full_name: string
   relation: string | null
+  is_primary: boolean
   medications: MedicationWithCondition[]
 }
 
@@ -158,48 +160,60 @@ function MedicationCard({ medication }: { medication: MedicationWithCondition })
   )
 }
 
-function MemberMedSection({
+function MemberAccordionSection({
   member,
-  statusFilter,
+  open,
+  onToggle,
 }: {
-  member: MemberWithMeds
-  statusFilter: 'active' | 'all'
+  member: MemberWithMeds & { filteredMedications: MedicationWithCondition[] }
+  open: boolean
+  onToggle: () => void
 }) {
   const initials = getInitials(member.full_name)
   const avatarColor = avatarColors[member.relation ?? 'other'] ?? avatarColors.other
-
-  const medications =
-    statusFilter === 'active'
-      ? member.medications.filter((m) => isMedicationActive(m))
-      : member.medications
-
-  if (medications.length === 0) return null
+  const count = member.filteredMedications.length
 
   return (
-    <div>
-      {/* Member section header */}
-      <div className="flex items-center gap-2 mb-3">
+    <div className="rounded-xl border overflow-hidden">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-muted/40 transition-colors"
+        aria-expanded={open}
+      >
         <div
-          className={`size-7 rounded-full flex items-center justify-center shrink-0 text-xs font-semibold ${avatarColor}`}
+          className={`size-9 rounded-full flex items-center justify-center shrink-0 font-semibold text-sm ${avatarColor}`}
         >
           {initials}
         </div>
-        <span className="text-sm font-semibold">{member.full_name}</span>
-        <span className="text-xs text-muted-foreground">
-          {medications.length} {medications.length === 1 ? 'medication' : 'medications'}
-        </span>
-      </div>
-      <div className="space-y-3 pl-0.5">
-        {medications.map((med) => (
-          <MedicationCard key={med.id} medication={med} />
-        ))}
-      </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-sm">{member.full_name}</p>
+          <p className="text-xs text-muted-foreground">
+            {count} {count === 1 ? 'medication' : 'medications'}
+          </p>
+        </div>
+        <ChevronDown
+          className={`size-4 text-muted-foreground shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+        />
+      </button>
+
+      {open && (
+        <div className="border-t bg-muted/20 px-4 py-4 space-y-3">
+          {member.filteredMedications.map((med) => (
+            <MedicationCard key={med.id} medication={med} />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
 export function MedicationsView({ memberMeds }: { memberMeds: MemberWithMeds[] }) {
   const [statusFilter, setStatusFilter] = useState<'active' | 'all'>('active')
+  const [nameFilter, setNameFilter] = useState('')
+  const [openMemberIds, setOpenMemberIds] = useState<Set<string>>(
+    () => new Set(memberMeds.map((m) => m.id))
+  )
 
   if (memberMeds.length === 0) {
     return (
@@ -218,8 +232,47 @@ export function MedicationsView({ memberMeds }: { memberMeds: MemberWithMeds[] }
 
   const hasAnyMedications = memberMeds.some((m) => m.medications.length > 0)
 
+  // Sort: primary member first, then alphabetical
+  const sortedMemberMeds = [...memberMeds].sort((a, b) => {
+    if (a.is_primary && !b.is_primary) return -1
+    if (!a.is_primary && b.is_primary) return 1
+    return a.full_name.localeCompare(b.full_name)
+  })
+
+  // Apply status + name filters, then hide members with 0 results
+  const processedMemberMeds = sortedMemberMeds
+    .map((m) => ({
+      ...m,
+      filteredMedications: m.medications
+        .filter((med) => statusFilter === 'active' ? isMedicationActive(med) : true)
+        .filter((med) =>
+          nameFilter === '' || med.name.toLowerCase().includes(nameFilter.toLowerCase())
+        ),
+    }))
+    .filter((m) => m.filteredMedications.length > 0)
+
+  function toggleMember(id: string) {
+    setOpenMemberIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
   return (
     <div className="relative">
+      {/* Name search input */}
+      <div className="relative mb-4">
+        <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground pointer-events-none" />
+        <Input
+          placeholder="Search medications..."
+          value={nameFilter}
+          onChange={(e) => setNameFilter(e.target.value)}
+          className="pl-8"
+        />
+      </div>
+
       {/* Status filter chips */}
       <div className="flex gap-2 mb-5">
         {(['active', 'all'] as const).map((filter) => (
@@ -238,7 +291,7 @@ export function MedicationsView({ memberMeds }: { memberMeds: MemberWithMeds[] }
         ))}
       </div>
 
-      {/* Member sections */}
+      {/* Member accordion sections */}
       {!hasAnyMedications ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <div className="size-10 rounded-full bg-muted flex items-center justify-center mb-3">
@@ -256,24 +309,26 @@ export function MedicationsView({ memberMeds }: { memberMeds: MemberWithMeds[] }
             Add Medication
           </Link>
         </div>
+      ) : processedMemberMeds.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="size-10 rounded-full bg-muted flex items-center justify-center mb-3">
+            <Pill className="size-5 text-muted-foreground" />
+          </div>
+          <p className="font-medium text-sm">No medications found</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {nameFilter ? 'Try a different search term' : 'All medications are inactive or ended'}
+          </p>
+        </div>
       ) : (
-        <div className="space-y-6">
-          {memberMeds.map((m) => (
-            <MemberMedSection key={m.id} member={m} statusFilter={statusFilter} />
+        <div className="space-y-3">
+          {processedMemberMeds.map((m) => (
+            <MemberAccordionSection
+              key={m.id}
+              member={m}
+              open={openMemberIds.has(m.id)}
+              onToggle={() => toggleMember(m.id)}
+            />
           ))}
-          {/* Empty state when filter hides everything */}
-          {statusFilter === 'active' &&
-            memberMeds.every((m) => m.medications.filter(isMedicationActive).length === 0) && (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <div className="size-10 rounded-full bg-muted flex items-center justify-center mb-3">
-                  <Pill className="size-5 text-muted-foreground" />
-                </div>
-                <p className="font-medium text-sm">No active medications</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  All medications are inactive or ended
-                </p>
-              </div>
-            )}
         </div>
       )}
 
