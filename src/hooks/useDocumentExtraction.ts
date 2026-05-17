@@ -2,6 +2,17 @@
 
 import { useState } from 'react'
 
+export interface ExtractionDocument {
+  file_name: string
+  file_size: number
+  title: string
+  document_date: string | null
+  doctor_name: string | null
+  hospital_name: string | null
+  document_type: string | null
+  notes: string | null
+}
+
 export interface ExtractedMedication {
   name: string
   dose: string | null
@@ -14,8 +25,12 @@ export interface ExtractedMedication {
 }
 
 export interface ExtractedDocumentData {
-  prescribed_by: string | null
+  doctor_name: string | null
+  hospital_name: string | null
   visit_date: string | null
+  document_type: string | null
+  notes: string | null
+  documents: ExtractionDocument[]
   medications: ExtractedMedication[]
 }
 
@@ -44,18 +59,17 @@ export function useDocumentExtraction() {
     try {
       const fileData = await Promise.all(
         files.map(async (file) => ({
-          base64: await fileToBase64(file),
+          base64:    await fileToBase64(file),
           mediaType: file.type,
+          fileName:  file.name,
+          fileSize:  file.size,
         }))
       )
 
       const response = await fetch('/api/extract-document', {
-        method: 'POST',
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          files: fileData,
-          documentType: documentType || 'medical document',
-        }),
+        body:    JSON.stringify({ files: fileData, documentType: documentType || 'medical document' }),
       })
 
       if (!response.ok) throw new Error('Extraction request failed')
@@ -70,8 +84,7 @@ export function useDocumentExtraction() {
       setExtractedData(result)
       return result
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Failed to extract data from document'
+      const message = error instanceof Error ? error.message : 'Failed to extract data from document'
       setExtractionError(message)
       return null
     } finally {
@@ -84,11 +97,5 @@ export function useDocumentExtraction() {
     setExtractionError(null)
   }
 
-  return {
-    extractFromFiles,
-    isExtracting,
-    extractedData,
-    extractionError,
-    clearExtraction,
-  }
+  return { extractFromFiles, isExtracting, extractedData, extractionError, clearExtraction }
 }

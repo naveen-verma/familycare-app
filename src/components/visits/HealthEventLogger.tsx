@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import {
   Select,
@@ -48,6 +49,14 @@ const VISIT_TYPES: { value: ConsultationType; label: string }[] = [
   { value: 'other',           label: 'Other' },
 ]
 
+const DOCUMENT_TYPES: { value: DocumentType; label: string }[] = [
+  { value: 'prescription', label: 'Prescription' },
+  { value: 'report',       label: 'Lab Report' },
+  { value: 'scan',         label: 'Scan' },
+  { value: 'vaccination',  label: 'Vaccination' },
+  { value: 'other',        label: 'Other' },
+]
+
 const MEDICATION_FREQUENCIES = [
   { value: 'once daily',          label: 'Once Daily' },
   { value: 'twice daily',         label: 'Twice Daily' },
@@ -89,11 +98,10 @@ const MAX_FILE_SIZE_MB = 10
 const ACCEPTED_TYPES = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png']
 
 function todayISO() { return new Date().toISOString().slice(0, 10) }
-function getInitials(name: string) { return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) }
-function getFirstName(name: string) { return name.split(' ')[0] }
-function formatFileSize(bytes: number) {
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+function getInitials(n: string) { return n.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2) }
+function getFirstName(n: string) { return n.split(' ')[0] }
+function formatFileSize(b: number) {
+  return b < 1024 * 1024 ? `${(b / 1024).toFixed(0)} KB` : `${(b / (1024 * 1024)).toFixed(1)} MB`
 }
 function fmtDate(d: string) {
   if (!d) return ''
@@ -104,6 +112,15 @@ function fmtDate(d: string) {
 
 type ConditionOption = { id: string; name: string; status: string }
 type ICD10Condition  = { id: string; name: string; category: string }
+
+type DocumentCard = {
+  title: string
+  document_date: string
+  doctor_name: string
+  hospital_name: string
+  document_type: DocumentType | ''
+  notes: string
+}
 
 type MedEntry = {
   id: string
@@ -168,14 +185,16 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
   const fileInputRef = useRef<HTMLInputElement>(null)
   const slowWarningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
+  const [documentCards, setDocumentCards] = useState<DocumentCard[]>([])
   const [fileError, setFileError] = useState<string | null>(null)
   const [isExtractingAll, setIsExtractingAll] = useState(false)
   const [showSlowWarning, setShowSlowWarning] = useState(false)
   const [extractionDone, setExtractionDone] = useState(false)
+  const [extractionFileCount, setExtractionFileCount] = useState<number | null>(null)
   const [extractionMedCount, setExtractionMedCount] = useState<number | null>(null)
   const [extractionError, setExtractionError] = useState<string | null>(null)
 
-  // Shared extraction result (used by Step 3)
+  // Step 3 shared state
   const [visitDetails, setVisitDetails] = useState<VisitDetails>({
     doctor_name: '', hospital_name: '', visit_date: todayISO(), visit_type: 'visit', notes: '',
   })
@@ -195,9 +214,7 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
         const supabase = createClient()
         const { data } = await supabase.from('icd10_conditions').select('id, name, category').order('name')
         if (data) setIcd10Conditions(data as ICD10Condition[])
-      } finally {
-        setLoadingIcd10(false)
-      }
+      } finally { setLoadingIcd10(false) }
     }
     fetchIcd10()
   }, [])
@@ -214,11 +231,13 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
     setNewConditionIcd10Id(null)
     setComboboxOpen(false)
     setUploadedFiles([])
+    setDocumentCards([])
     setFileError(null)
     setIsExtractingAll(false)
     setShowSlowWarning(false)
     if (slowWarningTimerRef.current) clearTimeout(slowWarningTimerRef.current)
     setExtractionDone(false)
+    setExtractionFileCount(null)
     setExtractionMedCount(null)
     setExtractionError(null)
     setVisitDetails({ doctor_name: '', hospital_name: '', visit_date: todayISO(), visit_type: 'visit', notes: '' })
@@ -256,9 +275,7 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
           status: c.status,
         })))
       }
-    } finally {
-      setLoadingConditions(false)
-    }
+    } finally { setLoadingConditions(false) }
   }
 
   // ── Step 1 validation ──────────────────────────────────────────────────────
@@ -266,7 +283,18 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
     !!selectedMemberId &&
     (!!selectedConditionId || (isNewCondition && newConditionName.trim().length > 0))
 
-  // ── File handling ──────────────────────────────────────────────────────────
+  // ── File + card management ─────────────────────────────────────────────────
+  function makeBlankCard(file: File): DocumentCard {
+    return {
+      title:         file.name.replace(/\.[^.]+$/, ''),
+      document_date: '',
+      doctor_name:   '',
+      hospital_name: '',
+      document_type: '',
+      notes:         '',
+    }
+  }
+
   function handleFilesSelected(fileList: FileList | null) {
     if (!fileList) return
     setFileError(null)
@@ -276,16 +304,28 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
       if (f.size > MAX_FILE_SIZE_MB * 1024 * 1024) { setFileError(`Each file must be under ${MAX_FILE_SIZE_MB} MB`); return }
       toAdd.push(f)
     }
-    const merged = [...uploadedFiles, ...toAdd].slice(0, MAX_FILES)
     if (uploadedFiles.length + toAdd.length > MAX_FILES) setFileError(`Maximum ${MAX_FILES} files allowed`)
-    setUploadedFiles(merged)
+    const newFiles = [...uploadedFiles, ...toAdd].slice(0, MAX_FILES)
+    const newCards = [...documentCards, ...toAdd.map(makeBlankCard)].slice(0, MAX_FILES)
+    setUploadedFiles(newFiles)
+    setDocumentCards(newCards)
   }
 
   function removeFile(index: number) {
     setUploadedFiles((prev) => prev.filter((_, i) => i !== index))
+    setDocumentCards((prev) => prev.filter((_, i) => i !== index))
     setExtractionDone(false)
+    setExtractionFileCount(null)
     setExtractionMedCount(null)
     setMeds([])
+  }
+
+  function updateDocCard<K extends keyof DocumentCard>(index: number, key: K, value: DocumentCard[K]) {
+    setDocumentCards((prev) => {
+      const next = [...prev]
+      next[index] = { ...next[index], [key]: value }
+      return next
+    })
   }
 
   // ── AI extraction ──────────────────────────────────────────────────────────
@@ -299,6 +339,7 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
     setIsExtractingAll(true)
     setExtractionError(null)
     setExtractionDone(false)
+    setExtractionFileCount(null)
     setExtractionMedCount(null)
     setShowSlowWarning(false)
     slowWarningTimerRef.current = setTimeout(() => setShowSlowWarning(true), 8000)
@@ -306,29 +347,44 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
     try {
       const result = await extractFromFiles(uploadedFiles)
       if (result) {
-        // Pre-fill visit details from extraction
+        // Pre-fill visit details
         setVisitDetails((prev) => ({
           ...prev,
-          doctor_name: result.prescribed_by || prev.doctor_name,
-          visit_date:  result.visit_date    || prev.visit_date,
+          doctor_name:   result.doctor_name   || prev.doctor_name,
+          hospital_name: result.hospital_name || prev.hospital_name,
+          visit_date:    result.visit_date     || prev.visit_date,
+        }))
+        // Update document cards with extracted metadata
+        setDocumentCards((prev) => prev.map((card, i) => {
+          const ed = result.documents[i]
+          if (!ed) return card
+          return {
+            ...card,
+            document_date: ed.document_date ?? card.document_date,
+            doctor_name:   ed.doctor_name   ?? card.doctor_name,
+            hospital_name: ed.hospital_name ?? card.hospital_name,
+            document_type: (ed.document_type as DocumentType | null) ?? card.document_type,
+            notes:         ed.notes         ?? card.notes,
+          }
         }))
         // Build medication entries
         setMeds(result.medications.map((m, i) => ({
           id:            `xmed-${i}`,
-          name:          m.name ?? '',
-          dosage:        m.dose ?? '',
-          frequency:     m.frequency ?? 'once daily',
+          name:          m.name       ?? '',
+          dosage:        m.dose       ?? '',
+          frequency:     m.frequency  ?? 'once daily',
           time_of_day:   m.time_of_day,
-          notes:         m.notes ?? '',
+          notes:         m.notes      ?? '',
           start_date:    m.start_date ?? todayISO(),
-          end_date:      m.end_date ?? '',
-          prescribed_by: result.prescribed_by ?? '',
+          end_date:      m.end_date   ?? '',
+          prescribed_by: result.doctor_name ?? '',
           reminderEnabled: false,
         })))
+        setExtractionFileCount(uploadedFiles.length)
         setExtractionMedCount(result.medications.length)
         setExtractionDone(true)
       } else {
-        setExtractionError('Extraction failed. You can add medications manually in the next step.')
+        setExtractionError('Extraction failed. You can fill in details manually in the next step.')
       }
     } finally {
       if (slowWarningTimerRef.current) clearTimeout(slowWarningTimerRef.current)
@@ -336,23 +392,25 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
     }
   }
 
-  // ── Med helpers (Step 3) ───────────────────────────────────────────────────
+  // ── Visit details helper ───────────────────────────────────────────────────
+  function updateVisit<K extends keyof VisitDetails>(key: K, value: VisitDetails[K]) {
+    setVisitDetails((prev) => ({ ...prev, [key]: value }))
+  }
+
+  // ── Med helpers ────────────────────────────────────────────────────────────
   function addMed() {
-    setMeds((prev) => [
-      ...prev,
-      {
-        id:            `med-${Date.now()}`,
-        name:          '',
-        dosage:        '',
-        frequency:     'once daily',
-        time_of_day:   ['08:00'],
-        notes:         '',
-        start_date:    todayISO(),
-        end_date:      '',
-        prescribed_by: visitDetails.doctor_name,
-        reminderEnabled: false,
-      },
-    ])
+    setMeds((prev) => [...prev, {
+      id:            `med-${Date.now()}`,
+      name:          '',
+      dosage:        '',
+      frequency:     'once daily',
+      time_of_day:   ['08:00'],
+      notes:         '',
+      start_date:    todayISO(),
+      end_date:      '',
+      prescribed_by: visitDetails.doctor_name,
+      reminderEnabled: false,
+    }])
   }
 
   function removeMed(id: string) {
@@ -363,9 +421,7 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
     setMeds((prev) => prev.map((m) => {
       if (m.id !== id) return m
       const updated = { ...m, [key]: value }
-      if (key === 'frequency') {
-        updated.time_of_day = TIME_DEFAULTS[value as string] ?? ['08:00']
-      }
+      if (key === 'frequency') updated.time_of_day = TIME_DEFAULTS[value as string] ?? ['08:00']
       return updated
     }))
   }
@@ -392,13 +448,30 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
       const { data: group } = await supabase.from('family_groups').select('id').eq('owner_id', profile.id).single()
       if (!group) throw new Error('Family group not found')
 
-      const savedDocs: Array<{ fileUrl: string; mimeType: string; fileSizeKb: number; title: string; documentType: DocumentType }> = []
-      for (const file of uploadedFiles) {
+      // Upload files then build documents array with per-card metadata
+      const savedDocs: Array<{
+        fileUrl: string; mimeType: string; fileSizeKb: number; title: string; documentType: DocumentType
+        documentDate?: string; doctorName?: string; hospitalName?: string; docNotes?: string
+      }> = []
+
+      for (let i = 0; i < uploadedFiles.length; i++) {
+        const file = uploadedFiles[i]
+        const card = documentCards[i]
         const sanitized = file.name.replace(/\s+/g, '_')
         const filePath = `${group.id}/${selectedMemberId}/${Date.now()}_${sanitized}`
         const { error: uploadErr } = await supabase.storage.from('familycare-docs').upload(filePath, file, { upsert: false })
         if (uploadErr) throw uploadErr
-        savedDocs.push({ fileUrl: filePath, mimeType: file.type, fileSizeKb: Math.round(file.size / 1024), title: file.name.replace(/\.[^.]+$/, ''), documentType: 'prescription' })
+        savedDocs.push({
+          fileUrl:      filePath,
+          mimeType:     file.type,
+          fileSizeKb:   Math.round(file.size / 1024),
+          title:        card?.title || file.name.replace(/\.[^.]+$/, ''),
+          documentType: (card?.document_type || 'prescription') as DocumentType,
+          documentDate: card?.document_date || undefined,
+          doctorName:   card?.doctor_name   || undefined,
+          hospitalName: card?.hospital_name || undefined,
+          docNotes:     card?.notes         || undefined,
+        })
       }
 
       await saveHealthEventAction({
@@ -412,14 +485,14 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
         medications: meds
           .filter((m) => m.name.trim())
           .map((m) => ({
-            name:           m.name,
-            dosage:         m.dosage,
-            frequency:      m.frequency,
-            timeOfDay:      m.time_of_day,
-            notes:          m.notes || undefined,
-            startDate:      m.start_date || undefined,
-            endDate:        m.end_date   || undefined,
-            prescribedBy:   m.prescribed_by || undefined,
+            name:            m.name,
+            dosage:          m.dosage,
+            frequency:       m.frequency,
+            timeOfDay:       m.time_of_day,
+            notes:           m.notes      || undefined,
+            startDate:       m.start_date || undefined,
+            endDate:         m.end_date   || undefined,
+            prescribedBy:    m.prescribed_by || undefined,
             reminderEnabled: m.reminderEnabled,
           })),
       })
@@ -435,20 +508,14 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
 
   // ── Derived ────────────────────────────────────────────────────────────────
   const selectedMember = familyMembers.find((m) => m.id === selectedMemberId)
-  const step3HasEmptyName = meds.some((m) => !m.name.trim())
+  const step3HasEmptyDocTitle = documentCards.some((c) => !c.title.trim())
+  const step3HasEmptyMedName  = meds.some((m) => !m.name.trim())
+  const step3Blocked = step3HasEmptyDocTitle || step3HasEmptyMedName
 
-  // Step 4 incomplete-field warnings
-  const incompleteWarnings = meds
+  // Step 4 warnings
+  const medIncomplete = meds
     .filter((m) => m.name.trim())
-    .map((m) => {
-      const missing: string[] = []
-      if (!m.dosage) missing.push('dose')
-      if (!m.end_date) missing.push('end date')
-      if (!m.prescribed_by) missing.push('prescribed by')
-      return missing.length > 0 ? { name: m.name, missing } : null
-    })
-    .filter((x): x is { name: string; missing: string[] } => x !== null)
-
+    .some((m) => !m.dosage || !m.frequency)
   const medsWithReminderOff = meds.filter((m) => m.name.trim() && !m.reminderEnabled).length
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -473,7 +540,7 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
             <h2 className="text-base font-semibold flex-1 leading-tight">
               {step === 1 && 'Log a visit'}
               {step === 2 && 'Upload documents'}
-              {step === 3 && 'Medications'}
+              {step === 3 && 'Visit details'}
               {step === 4 && 'Ready to save'}
             </h2>
             <button onClick={() => handleOpenChange(false)} className="p-1 rounded-lg hover:bg-gray-100 shrink-0" aria-label="Close">
@@ -631,11 +698,8 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
                 </div>
               )}
 
-              {fileError && (
-                <p className="flex items-center gap-1 text-xs text-destructive"><AlertCircle className="size-3 shrink-0" /> {fileError}</p>
-              )}
+              {fileError && <p className="flex items-center gap-1 text-xs text-destructive"><AlertCircle className="size-3 shrink-0" /> {fileError}</p>}
 
-              {/* Extract button — shown while extraction not yet done */}
               {uploadedFiles.length > 0 && !extractionDone && (
                 <>
                   <button type="button" onClick={runExtraction} disabled={isExtractingAll}
@@ -643,32 +707,34 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
                     {isExtractingAll ? <Loader2 className="size-4 text-teal-600 shrink-0 mt-0.5 animate-spin" /> : <Sparkles className="size-4 text-teal-600 shrink-0 mt-0.5" />}
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-teal-800">
-                        {isExtractingAll ? 'Extracting…' : 'Extract medications from documents'}
+                        {isExtractingAll ? 'Extracting…' : 'Extract details from documents'}
                       </p>
-                      {!isExtractingAll && <p className="text-xs text-teal-600 mt-0.5">AI reads all files and pre-fills medications in the next step</p>}
+                      {!isExtractingAll && <p className="text-xs text-teal-600 mt-0.5">AI reads all files and pre-fills document and medication details</p>}
                     </div>
                   </button>
                   {isExtractingAll && showSlowWarning && (
-                    <p className="text-xs text-muted-foreground text-center">This is taking longer than usual — large files may take up to 30 seconds.</p>
+                    <p className="text-xs text-muted-foreground text-center">Large files may take up to 30 seconds…</p>
                   )}
                   <p className="text-xs text-muted-foreground text-center">Documents are processed by Anthropic&apos;s AI and are not stored or used for training.</p>
                 </>
               )}
 
-              {/* Extraction success summary */}
-              {extractionDone && extractionMedCount !== null && (
+              {extractionDone && extractionFileCount !== null && (
                 <div className="flex items-start gap-2.5 rounded-xl border border-teal-200 bg-teal-50 px-4 py-3">
                   <CheckCircle className="size-4 text-teal-600 shrink-0 mt-0.5" />
-                  <p className="text-sm text-teal-800">
-                    {extractionMedCount > 0
-                      ? <>Found <span className="font-semibold">{extractionMedCount} medication{extractionMedCount > 1 ? 's' : ''}</span> — review and complete details in the next step</>
-                      : 'No medications found. You can add them manually in the next step.'
-                    }
-                  </p>
+                  <div>
+                    <p className="text-sm font-medium text-teal-800">
+                      ✓ Extracted details from {extractionFileCount} file{extractionFileCount > 1 ? 's' : ''}
+                    </p>
+                    {extractionMedCount !== null && extractionMedCount > 0 && (
+                      <p className="text-xs text-teal-600 mt-0.5">
+                        Also found {extractionMedCount} medication{extractionMedCount > 1 ? 's' : ''}
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
 
-              {/* Extraction error */}
               {extractionError && !isExtractingAll && (
                 <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
                   <AlertCircle className="size-3 shrink-0 mt-0.5" /> {extractionError}
@@ -677,31 +743,122 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
             </>
           )}
 
-          {/* ─── STEP 3: Medication review ────────────────────────────── */}
+          {/* ─── STEP 3 ───────────────────────────────────────────────── */}
           {step === 3 && (
             <>
-              <div>
-                <p className="text-sm font-semibold">Medications from this visit</p>
-                {meds.length > 0 ? (
-                  <p className="text-xs text-muted-foreground mt-0.5">Review AI-filled details and complete any missing fields</p>
-                ) : (
-                  <p className="text-xs text-muted-foreground mt-0.5">Add medications prescribed during this visit</p>
-                )}
+              {/* ── Visit details ── */}
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="doctor_name">Doctor Name</Label>
+                  <Input id="doctor_name" value={visitDetails.doctor_name}
+                    onChange={(e) => updateVisit('doctor_name', e.target.value)}
+                    placeholder="e.g. Dr. Anjali Sharma" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="visit_date">Visit Date</Label>
+                    <Input id="visit_date" type="date" value={visitDetails.visit_date}
+                      max={todayISO()} onChange={(e) => updateVisit('visit_date', e.target.value)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Visit Type</Label>
+                    <Select value={visitDetails.visit_type} onValueChange={(v) => updateVisit('visit_type', v as ConsultationType)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {VISIT_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="notes">Notes</Label>
+                  <Textarea id="notes" value={visitDetails.notes}
+                    onChange={(e) => updateVisit('notes', e.target.value)}
+                    placeholder="Any notes about the visit…" rows={2} className="resize-none" />
+                </div>
               </div>
 
-              {meds.length === 0 && (
-                <div className="rounded-xl border border-dashed px-4 py-8 text-center">
-                  <Pill className="size-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm font-medium text-muted-foreground">No medications added for this visit</p>
-                  <p className="text-xs text-muted-foreground mt-1">Tap &apos;Add medication&apos; to add one, or tap Next to skip</p>
-                </div>
+              {/* ── Documents section ── */}
+              {uploadedFiles.length > 0 && (
+                <>
+                  <div className="border-t pt-4">
+                    <p className="text-sm font-semibold mb-3">📄 Documents to save</p>
+                    <div className="space-y-4">
+                      {uploadedFiles.map((file, idx) => {
+                        const card = documentCards[idx] ?? makeBlankCard(file)
+                        return (
+                          <div key={idx} className="rounded-xl border p-4 space-y-3">
+                            <p className="text-xs text-muted-foreground truncate">{file.name}</p>
+
+                            <div className="space-y-1">
+                              <Label className="text-xs">Document title <span className="text-destructive">*</span></Label>
+                              <Input value={card.title}
+                                onChange={(e) => updateDocCard(idx, 'title', e.target.value)}
+                                placeholder="e.g. Blood test report"
+                                className={!card.title.trim() ? 'border-destructive' : ''} />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="space-y-1">
+                                <Label className="text-xs">Document date</Label>
+                                <Input type="date" value={card.document_date}
+                                  onChange={(e) => updateDocCard(idx, 'document_date', e.target.value)} />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Document type</Label>
+                                <Select value={card.document_type}
+                                  onValueChange={(v) => updateDocCard(idx, 'document_type', v as DocumentType)}>
+                                  <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select type" /></SelectTrigger>
+                                  <SelectContent>
+                                    {DOCUMENT_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+
+                            <div className="space-y-1">
+                              <Label className="text-xs">Doctor who issued this document</Label>
+                              <Input value={card.doctor_name}
+                                onChange={(e) => updateDocCard(idx, 'doctor_name', e.target.value)}
+                                placeholder="Doctor name" />
+                            </div>
+
+                            <div className="space-y-1">
+                              <Label className="text-xs">Hospital / Clinic</Label>
+                              <Input value={card.hospital_name}
+                                onChange={(e) => updateDocCard(idx, 'hospital_name', e.target.value)}
+                                placeholder="Hospital or clinic name" />
+                            </div>
+
+                            <div className="space-y-1">
+                              <Label className="text-xs">Notes</Label>
+                              <Input value={card.notes}
+                                onChange={(e) => updateDocCard(idx, 'notes', e.target.value)}
+                                placeholder="Any additional notes" />
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </>
               )}
 
-              <div className="space-y-4">
+              {/* ── Medications section ── */}
+              <div className="border-t pt-4 space-y-4">
+                {meds.length > 0 && (
+                  <p className="text-sm font-semibold">💊 Medications from this visit</p>
+                )}
+
+                {meds.length === 0 && (
+                  <div className="rounded-xl border border-dashed px-4 py-6 text-center">
+                    <Pill className="size-7 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">No medications yet</p>
+                  </div>
+                )}
+
                 {meds.map((med) => (
                   <div key={med.id} className="rounded-xl border p-4 space-y-3">
-
-                    {/* Name */}
                     <div className="space-y-1">
                       <Label className="text-xs">Medication name <span className="text-destructive">*</span></Label>
                       <Input value={med.name} onChange={(e) => updateMed(med.id, 'name', e.target.value)}
@@ -709,7 +866,6 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
                         className={!med.name.trim() ? 'border-destructive' : ''} />
                     </div>
 
-                    {/* Dose + Frequency */}
                     <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-1">
                         <Label className="text-xs">Dose</Label>
@@ -726,7 +882,6 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
                       </div>
                     </div>
 
-                    {/* Time chips */}
                     {med.frequency !== 'as needed' && med.time_of_day.length > 0 && (
                       <div className="space-y-1">
                         <Label className="text-xs">Times</Label>
@@ -740,7 +895,6 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
                       </div>
                     )}
 
-                    {/* Start + End date */}
                     <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-1">
                         <Label className="text-xs">Start date</Label>
@@ -754,19 +908,16 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
                       </div>
                     </div>
 
-                    {/* Prescribed by */}
                     <div className="space-y-1">
                       <Label className="text-xs">Prescribed by</Label>
                       <Input value={med.prescribed_by} onChange={(e) => updateMed(med.id, 'prescribed_by', e.target.value)} placeholder="e.g. Dr. Anjali Sharma" />
                     </div>
 
-                    {/* Notes */}
                     <div className="space-y-1">
                       <Label className="text-xs">Notes</Label>
                       <Input value={med.notes} onChange={(e) => updateMed(med.id, 'notes', e.target.value)} placeholder="e.g. After food, before sleep" />
                     </div>
 
-                    {/* Reminders — OFF by default, hidden for as-needed */}
                     {med.frequency !== 'as needed' && (
                       <div className="space-y-1.5 pt-1 border-t">
                         <div className="flex items-center justify-between">
@@ -776,30 +927,28 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
                           </div>
                           <Switch checked={med.reminderEnabled} onCheckedChange={(v) => updateMed(med.id, 'reminderEnabled', v)} />
                         </div>
-                        {!med.reminderEnabled && (
-                          <p className="text-xs text-amber-600">⚠ Turn on after verifying medication details</p>
-                        )}
+                        {!med.reminderEnabled && <p className="text-xs text-amber-600">⚠ Verify details before enabling</p>}
                       </div>
                     )}
 
-                    {/* Remove */}
                     <div className="flex justify-end pt-1">
-                      <button type="button" onClick={() => removeMed(med.id)} className="text-xs text-destructive hover:underline flex items-center gap-1">
+                      <button type="button" onClick={() => removeMed(med.id)}
+                        className="text-xs text-destructive hover:underline flex items-center gap-1">
                         <Trash2 className="size-3" /> Remove this medication
                       </button>
                     </div>
                   </div>
                 ))}
-              </div>
 
-              <button type="button" onClick={addMed}
-                className="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-dashed py-3 text-sm font-medium text-teal-600 hover:border-teal-400 hover:bg-teal-50/30 transition-colors">
-                <Plus className="size-4" /> Add medication
-              </button>
+                <button type="button" onClick={addMed}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-dashed py-3 text-sm font-medium text-teal-600 hover:border-teal-400 hover:bg-teal-50/30 transition-colors">
+                  <Plus className="size-4" /> Add medication from this visit
+                </button>
+              </div>
             </>
           )}
 
-          {/* ─── STEP 4: Review + save ─────────────────────────────────── */}
+          {/* ─── STEP 4 ───────────────────────────────────────────────── */}
           {step === 4 && (
             <>
               {saveError && (
@@ -809,9 +958,8 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
                 </div>
               )}
 
-              {/* Summary card */}
+              {/* Core summary */}
               <div className="rounded-xl border divide-y">
-                {/* Visit */}
                 <div className="p-3.5 space-y-1">
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Visit</p>
                   <div className="flex items-start gap-2">
@@ -824,90 +972,95 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
                   </div>
                 </div>
 
-                {/* Condition */}
                 <div className="p-3.5 space-y-1">
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Condition</p>
                   <div className="flex items-start gap-2">
                     <CheckCircle className="size-3.5 text-teal-600 shrink-0 mt-0.5" />
                     <p className="text-sm">
                       {isNewCondition
-                        ? <></>
+                        ? <>New condition: <span className="font-medium">{newConditionName}</span></>
                         : selectedConditionId
                           ? <span className="font-medium">{memberConditions.find((c) => c.id === selectedConditionId)?.name ?? 'Selected condition'}</span>
                           : <span className="text-muted-foreground">No condition linked</span>
                       }
-                      {isNewCondition && <>New condition: <span className="font-medium">{newConditionName}</span></>}
                     </p>
                   </div>
                 </div>
 
-                {/* Documents */}
-                <div className="p-3.5 space-y-1">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Documents</p>
-                  {uploadedFiles.length > 0
-                    ? uploadedFiles.map((f, i) => (
-                        <div key={i} className="flex items-start gap-2">
-                          <CheckCircle className="size-3.5 text-teal-600 shrink-0 mt-0.5" />
-                          <p className="text-sm truncate">{f.name}</p>
-                        </div>
-                      ))
-                    : <p className="text-sm text-muted-foreground">No documents</p>
-                  }
-                </div>
-
-                {/* Medications */}
-                <div className="p-3.5 space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Medications from this visit</p>
-                  {meds.filter((m) => m.name.trim()).length === 0
-                    ? <p className="text-sm text-muted-foreground">No medications</p>
-                    : meds.filter((m) => m.name.trim()).map((m) => (
-                        <div key={m.id} className="rounded-lg bg-muted/30 px-3 py-2.5 space-y-0.5">
-                          <p className="text-sm font-semibold">{m.name}</p>
-                          {(m.dosage || m.frequency) && (
-                            <p className="text-xs text-muted-foreground">{[m.dosage, m.frequency].filter(Boolean).join(' · ')}</p>
-                          )}
-                          {m.frequency !== 'as needed' && m.time_of_day.length > 0 && (
-                            <p className="text-xs text-muted-foreground">Times: {m.time_of_day.join(' · ')}</p>
-                          )}
-                          {m.prescribed_by && <p className="text-xs text-muted-foreground">Dr: {m.prescribed_by}</p>}
-                          <p className="text-xs text-muted-foreground">
-                            {m.start_date ? fmtDate(m.start_date) : ''}
-                            {m.end_date ? ` → ${fmtDate(m.end_date)}` : m.start_date ? ' → Ongoing' : ''}
-                          </p>
-                          {m.notes && <p className="text-xs text-muted-foreground italic">{m.notes}</p>}
-                          <span className={`inline-flex text-[10px] font-medium rounded-full px-1.5 py-0.5 ${m.reminderEnabled ? 'bg-teal-100 text-teal-700' : 'bg-gray-100 text-gray-500'}`}>
-                            {m.reminderEnabled ? 'Reminders: On' : 'Reminders: Off'}
-                          </span>
-                        </div>
-                      ))
-                  }
-                </div>
-
-                {/* Member */}
                 <div className="p-3.5 space-y-1">
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">For</p>
                   <p className="text-sm font-medium">{selectedMember?.full_name ?? '—'}</p>
                 </div>
               </div>
 
-              {/* Incomplete field warnings */}
-              {incompleteWarnings.length > 0 && (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 space-y-1.5">
-                  <p className="text-xs font-semibold text-amber-800">⚠ Some medication details are incomplete:</p>
-                  {incompleteWarnings.map((w, i) => (
-                    <p key={i} className="text-xs text-amber-700">
-                      • <span className="font-medium">{w.name}</span> — missing: {w.missing.join(', ')}
-                    </p>
-                  ))}
+              {/* Documents being saved */}
+              {uploadedFiles.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Documents being saved</p>
+                  <div className="space-y-2">
+                    {documentCards.map((card, i) => (
+                      <div key={i} className="rounded-lg bg-muted/30 px-3 py-2.5 space-y-0.5">
+                        <p className="text-sm font-semibold">{card.title || uploadedFiles[i]?.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {[DOCUMENT_TYPES.find((t) => t.value === card.document_type)?.label, card.document_date ? fmtDate(card.document_date) : '']
+                            .filter(Boolean).join(' · ')}
+                        </p>
+                        {card.doctor_name   && <p className="text-xs text-muted-foreground">Dr: {card.doctor_name}</p>}
+                        {card.hospital_name && <p className="text-xs text-muted-foreground">{card.hospital_name}</p>}
+                        {card.notes        && <p className="text-xs text-muted-foreground italic">{card.notes}</p>}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
-              {/* Reminder summary */}
+              {/* Medications from this visit */}
+              {meds.filter((m) => m.name.trim()).length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Medications from this visit</p>
+                  <div className="space-y-2">
+                    {meds.filter((m) => m.name.trim()).map((m) => (
+                      <div key={m.id} className="rounded-lg bg-muted/30 px-3 py-2.5 space-y-0.5">
+                        <p className="text-sm font-semibold">{m.name}</p>
+                        {(m.dosage || m.frequency) && (
+                          <p className="text-xs text-muted-foreground">{[m.dosage, m.frequency].filter(Boolean).join(' · ')}</p>
+                        )}
+                        {m.frequency !== 'as needed' && m.time_of_day.length > 0 && (
+                          <p className="text-xs text-muted-foreground">Times: {m.time_of_day.join(' · ')}</p>
+                        )}
+                        {m.prescribed_by && <p className="text-xs text-muted-foreground">Dr: {m.prescribed_by}</p>}
+                        <p className="text-xs text-muted-foreground">
+                          {m.start_date ? fmtDate(m.start_date) : ''}
+                          {m.end_date ? ` → ${fmtDate(m.end_date)}` : m.start_date ? ' → Ongoing' : ''}
+                        </p>
+                        {m.notes && <p className="text-xs text-muted-foreground italic">{m.notes}</p>}
+                        <span className={`inline-flex text-[10px] font-medium rounded-full px-1.5 py-0.5 ${m.reminderEnabled ? 'bg-teal-100 text-teal-700' : 'bg-gray-100 text-gray-500'}`}>
+                          {m.reminderEnabled ? 'Reminders: On' : 'Reminders: Off'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Warnings */}
+              {uploadedFiles.length > 0 && documentCards.some((c) => !c.title.trim()) && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                  <p className="text-xs text-amber-800">⚠ Some documents are missing a title.</p>
+                </div>
+              )}
+
+              {medIncomplete && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                  <p className="text-xs text-amber-800">⚠ Some medication details are incomplete. You can update them in Medications after saving.</p>
+                </div>
+              )}
+
               {medsWithReminderOff > 0 && (
                 <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
                   <p className="text-xs text-blue-800">
                     💊 Reminders are off for <span className="font-semibold">{medsWithReminderOff} medication{medsWithReminderOff > 1 ? 's' : ''}</span>.
-                    Go to Medications to enable reminders after saving.
+                    Enable them in the Medications page after verifying details.
                   </p>
                 </div>
               )}
@@ -936,10 +1089,12 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
           )}
           {step === 3 && (
             <div className="space-y-2">
-              {step3HasEmptyName && (
-                <p className="text-xs text-center text-amber-600">Please enter a name for all medications before continuing</p>
+              {step3Blocked && (
+                <p className="text-xs text-center text-amber-600">
+                  {step3HasEmptyDocTitle ? 'Please enter a title for all documents' : 'Please enter a name for all medications'}
+                </p>
               )}
-              <Button className="w-full bg-teal-600 hover:bg-teal-700" disabled={step3HasEmptyName} onClick={() => setStep(4)}>
+              <Button className="w-full bg-teal-600 hover:bg-teal-700" disabled={step3Blocked} onClick={() => setStep(4)}>
                 Review summary →
               </Button>
             </div>
