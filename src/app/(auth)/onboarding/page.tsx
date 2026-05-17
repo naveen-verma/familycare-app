@@ -51,10 +51,28 @@ export default function OnboardingPage() {
 
   // Step 2 data
   const [dob, setDob] = useState('')
+  const [ageDeclarationAccepted, setAgeDeclarationAccepted] = useState(false)
   const [gender, setGender] = useState('')
   const [bloodGroup, setBloodGroup] = useState('')
   const [heightCm, setHeightCm] = useState('')
   const [weightKg, setWeightKg] = useState('')
+
+  function calculateAge(dobStr: string): number {
+    const today = new Date()
+    const birth = new Date(dobStr)
+    let age = today.getFullYear() - birth.getFullYear()
+    const m = today.getMonth() - birth.getMonth()
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--
+    return age
+  }
+
+  const userAge = dob ? calculateAge(dob) : null
+  const isUnderAge = userAge !== null && userAge < 18
+
+  function handleDobChange(value: string) {
+    setDob(value)
+    setAgeDeclarationAccepted(false)
+  }
 
   const formatMobile = (val: string) =>
     val.replace(/\D/g, '').slice(0, 10)
@@ -289,10 +307,29 @@ export default function OnboardingPage() {
                   id="dob"
                   type="date"
                   value={dob}
-                  onChange={e => setDob(e.target.value)}
+                  onChange={e => handleDobChange(e.target.value)}
                   max={new Date().toISOString().split('T')[0]}
                 />
+                {dob && isUnderAge && (
+                  <div className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-md">
+                    FamilyCare is available for users aged 18 and above. Please ask a parent or guardian to create an account.
+                  </div>
+                )}
               </div>
+
+              {dob && !isUnderAge && userAge !== null && (
+                <div className="flex items-start gap-3 rounded-lg border bg-gray-50 px-3 py-3">
+                  <Checkbox
+                    id="ageDeclaration"
+                    checked={ageDeclarationAccepted}
+                    onCheckedChange={(checked) => setAgeDeclarationAccepted(checked === true)}
+                    className="mt-0.5 shrink-0"
+                  />
+                  <label htmlFor="ageDeclaration" className="text-sm text-gray-600 leading-relaxed cursor-pointer">
+                    I confirm that I am 18 years of age or older
+                  </label>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="gender">Gender</Label>
@@ -386,7 +423,7 @@ export default function OnboardingPage() {
                 <Button
                   type="submit"
                   className="flex-1 bg-indigo-600 hover:bg-indigo-700"
-                  disabled={loading}
+                  disabled={loading || !dob || isUnderAge || !ageDeclarationAccepted}
                 >
                   {loading ? 'Setting up...' : 'Get Started 🎉'}
                 </Button>
