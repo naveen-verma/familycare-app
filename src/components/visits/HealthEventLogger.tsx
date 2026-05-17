@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -24,7 +24,9 @@ import {
   AlertCircle,
   Pill,
   CheckCircle,
+  Check,
 } from 'lucide-react'
+import { Popover as PopoverPrimitive } from 'radix-ui'
 import { createClient } from '@/lib/supabase/client'
 import { useDocumentExtraction } from '@/hooks/useDocumentExtraction'
 import type { FamilyMemberSummary } from '@/components/dashboard/QuickActionsBar'
@@ -114,6 +116,12 @@ type ConditionOption = {
   status: string
 }
 
+type ICD10Condition = {
+  id: string
+  name: string
+  category: string
+}
+
 type ExtractedMedEntry = {
   id: string
   name: string
@@ -174,12 +182,19 @@ export default function HealthEventLogger({
   const [selectedConditionId, setSelectedConditionId] = useState<string | null>(null)
   const [isNewCondition, setIsNewCondition] = useState(false)
   const [newConditionName, setNewConditionName] = useState('')
+  // ICD-10 combobox
+  const [icd10Conditions, setIcd10Conditions] = useState<ICD10Condition[]>([])
+  const [loadingIcd10, setLoadingIcd10] = useState(false)
+  const [newConditionIcd10Id, setNewConditionIcd10Id] = useState<string | null>(null)
+  const [comboboxOpen, setComboboxOpen] = useState(false)
 
   // Step 2 state
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const slowWarningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
   const [fileError, setFileError] = useState<string | null>(null)
   const [isExtractingAll, setIsExtractingAll] = useState(false)
+  const [showSlowWarning, setShowSlowWarning] = useState(false)
   const [extractedData, setExtractedData] = useState<ExtractedDocumentData | null>(null)
   const [extractionError, setExtractionError] = useState<string | null>(null)
   const [extractedMeds, setExtractedMeds] = useState<ExtractedMedEntry[]>([])
@@ -198,7 +213,25 @@ export default function HealthEventLogger({
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
-  const { extractFromFile } = useDocumentExtraction()
+  const { extractFromFiles } = useDocumentExtraction()
+
+  // Fetch ICD-10 conditions on mount
+  useEffect(() => {
+    async function fetchIcd10() {
+      setLoadingIcd10(true)
+      try {
+        const supabase = createClient()
+        const { data } = await supabase
+          .from('icd10_conditions')
+          .select('id, name, category')
+          .order('name')
+        if (data) setIcd10Conditions(data as ICD10Condition[])
+      } finally {
+        setLoadingIcd10(false)
+      }
+    }
+    fetchIcd10()
+  }, [])
 
   // ── Reset when closed ──────────────────────────────────────────────────────
   function resetAll() {
@@ -209,9 +242,13 @@ export default function HealthEventLogger({
     setSelectedConditionId(null)
     setIsNewCondition(false)
     setNewConditionName('')
+    setNewConditionIcd10Id(null)
+    setComboboxOpen(false)
     setUploadedFiles([])
     setFileError(null)
     setIsExtractingAll(false)
+    setShowSlowWarning(false)
+    if (slowWarningTimerRef.current) clearTimeout(slowWarningTimerRef.current)
     setExtractedData(null)
     setExtractionError(null)
     setExtractedMeds([])
@@ -233,6 +270,8 @@ export default function HealthEventLogger({
     setSelectedConditionId(null)
     setIsNewCondition(false)
     setNewConditionName('')
+    setNewConditionIcd10Id(null)
+    setComboboxOpen(false)
     try {
       const supabase = createClient()
       const { data } = await supabase
@@ -298,9 +337,14 @@ export default function HealthEventLogger({
 
   // ── AI extraction ──────────────────────────────────────────────────────────
   async function runExtraction() {
-    const imageFiles = uploadedFiles.filter((f) => IMAGE_TYPES.includes(f.type))
-    if (imageFiles.length === 0) {
-      setExtractionError('Upload at least one image (JPG/PNG) for AI extraction. PDF extraction coming soon.')
+    if (uploadedFiles.length === 0) return
+
+    // Total size guard — 20 MB across all files
+    const totalBytes = uploadedFiles.reduce((s, f) => s + f.size, 0)
+    if (totalBytes > 20 * 1024 * 1024) {
+      setExtractionError(
+        'Total file size is too large for extraction. Please extract files individually.'
+      )
       return
     }
 
@@ -308,54 +352,40 @@ export default function HealthEventLogger({
     setExtractionError(null)
     setExtractedData(null)
     setExtractedMeds([])
+    setShowSlowWarning(false)
 
-    let merged: ExtractedDocumentData | null = null
+    // Show slow-extraction hint after 8 seconds
+    slowWarningTimerRef.current = setTimeout(() => setShowSlowWarning(true), 8000)
 
-    for (const file of imageFiles) {
-      const result = await extractFromFile(file)
-      if (!result) continue
-      if (!merged) {
-        merged = { ...result }
-      } else {
-        const prev: ExtractedDocumentData = merged
-        merged = {
+    try {
+      const result = await extractFromFiles(uploadedFiles)
+
+      if (result) {
+        setExtractedData(result)
+        setExtractionUsed(true)
+        setVisitDetails((prev) => ({
           ...prev,
-          doctor_name: prev.doctor_name || result.doctor_name,
-          hospital_name: prev.hospital_name || result.hospital_name,
-          visit_date: prev.visit_date || result.visit_date,
-          condition_name: prev.condition_name || result.condition_name,
-          condition_notes: prev.condition_notes || result.condition_notes,
-          medications: [...prev.medications, ...result.medications],
-        }
-      }
-    }
-
-    if (merged) {
-      setExtractedData(merged)
-      setExtractionUsed(true)
-      // Pre-fill visit details
-      setVisitDetails((prev) => ({
-        ...prev,
-        doctor_name: merged!.doctor_name || prev.doctor_name,
-        hospital_name: merged!.hospital_name || prev.hospital_name,
-        visit_date: merged!.visit_date || prev.visit_date,
-      }))
-      // Build med entries
-      setExtractedMeds(
-        merged.medications.map((m, i) => ({
-          id: `xmed-${i}`,
-          name: m.name,
-          dosage: m.dosage,
-          frequency: matchFrequency(m.frequency),
-          enabled: true,
-          reminderEnabled: true,
+          doctor_name: result.doctor_name || prev.doctor_name,
+          hospital_name: result.hospital_name || prev.hospital_name,
+          visit_date: result.visit_date || prev.visit_date,
         }))
-      )
-    } else {
-      setExtractionError('Could not read the documents. Fill in details manually below.')
+        setExtractedMeds(
+          result.medications.map((m, i) => ({
+            id: `xmed-${i}`,
+            name: m.name,
+            dosage: m.dosage,
+            frequency: matchFrequency(m.frequency),
+            enabled: true,
+            reminderEnabled: true,
+          }))
+        )
+      } else {
+        setExtractionError('Could not read the documents. Fill in details manually below.')
+      }
+    } finally {
+      if (slowWarningTimerRef.current) clearTimeout(slowWarningTimerRef.current)
+      setIsExtractingAll(false)
     }
-
-    setIsExtractingAll(false)
   }
 
   // ── Step 3 helpers ─────────────────────────────────────────────────────────
@@ -427,7 +457,8 @@ export default function HealthEventLogger({
       await saveHealthEventAction({
         memberId: selectedMemberId,
         conditionType: isNewCondition ? 'new' : selectedConditionId ? 'existing' : 'skip',
-        conditionName: isNewCondition ? newConditionName : undefined,
+        conditionName: isNewCondition && !newConditionIcd10Id ? newConditionName : undefined,
+        icd10ConditionId: isNewCondition ? (newConditionIcd10Id ?? null) : undefined,
         existingConditionId: selectedConditionId ?? undefined,
         visitDetails,
         documents: savedDocs,
@@ -597,20 +628,117 @@ export default function HealthEventLogger({
                       <div className="flex items-center justify-between">
                         <Label>New condition name</Label>
                         <button
-                          onClick={() => { setIsNewCondition(false); setNewConditionName('') }}
+                          onClick={() => {
+                            setIsNewCondition(false)
+                            setNewConditionName('')
+                            setNewConditionIcd10Id(null)
+                            setComboboxOpen(false)
+                          }}
                           className="text-xs text-muted-foreground hover:underline"
                         >
                           Cancel
                         </button>
                       </div>
-                      <Input
-                        autoFocus
-                        value={newConditionName}
-                        onChange={(e) => setNewConditionName(e.target.value)}
-                        placeholder="e.g. Diabetes Type 2"
-                      />
+
+                      {/* ICD-10 combobox — Popover renders via Portal to escape overflow clipping */}
+                      <PopoverPrimitive.Root open={comboboxOpen} onOpenChange={setComboboxOpen}>
+                        <PopoverPrimitive.Anchor asChild>
+                          <div className="relative">
+                            <Input
+                              autoFocus
+                              value={newConditionName}
+                              onChange={(e) => {
+                                setNewConditionName(e.target.value)
+                                setNewConditionIcd10Id(null)
+                                setComboboxOpen(true)
+                              }}
+                              onFocus={() => setComboboxOpen(true)}
+                              onBlur={() => setTimeout(() => setComboboxOpen(false), 200)}
+                              placeholder="e.g. Diabetes Type 2"
+                              className={newConditionIcd10Id ? 'border-teal-400 pr-8' : ''}
+                            />
+                            {newConditionIcd10Id && (
+                              <Check className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-teal-600 pointer-events-none" />
+                            )}
+                          </div>
+                        </PopoverPrimitive.Anchor>
+                        <PopoverPrimitive.Portal>
+                          <PopoverPrimitive.Content
+                            sideOffset={4}
+                            onOpenAutoFocus={(e) => e.preventDefault()}
+                            className="z-[70] rounded-lg border bg-white shadow-lg outline-none overflow-hidden"
+                            style={{ width: 'var(--radix-popper-anchor-width)' }}
+                          >
+                            <div className="max-h-[240px] overflow-y-auto py-1">
+                              {loadingIcd10 ? (
+                                <p className="text-xs text-muted-foreground px-3 py-2">Loading conditions…</p>
+                              ) : (
+                                <>
+                                  {/* Filtered ICD-10 results */}
+                                  {(newConditionName.trim()
+                                    ? icd10Conditions
+                                        .filter((c) =>
+                                          c.name.toLowerCase().includes(newConditionName.toLowerCase())
+                                        )
+                                        .slice(0, 8)
+                                    : icd10Conditions.slice(0, 8)
+                                  ).map((cond) => (
+                                    <button
+                                      key={cond.id}
+                                      type="button"
+                                      onMouseDown={(e) => {
+                                        e.preventDefault()
+                                        setNewConditionName(cond.name)
+                                        setNewConditionIcd10Id(cond.id)
+                                        setComboboxOpen(false)
+                                      }}
+                                      className={`w-full flex items-start gap-2 px-3 py-2 text-left hover:bg-accent transition-colors ${
+                                        newConditionIcd10Id === cond.id ? 'bg-teal-50' : ''
+                                      }`}
+                                    >
+                                      <Check
+                                        className={`size-3.5 mt-0.5 shrink-0 text-teal-600 ${
+                                          newConditionIcd10Id === cond.id ? 'opacity-100' : 'opacity-0'
+                                        }`}
+                                      />
+                                      <div className="min-w-0">
+                                        <p className="text-sm font-medium truncate">{cond.name}</p>
+                                        {cond.category && (
+                                          <p className="text-xs text-muted-foreground">{cond.category}</p>
+                                        )}
+                                      </div>
+                                    </button>
+                                  ))}
+
+                                  {/* Custom condition option */}
+                                  {newConditionName.trim() && (
+                                    <button
+                                      type="button"
+                                      onMouseDown={(e) => {
+                                        e.preventDefault()
+                                        setNewConditionIcd10Id(null)
+                                        setComboboxOpen(false)
+                                      }}
+                                      className="w-full text-left px-3 py-2 text-sm text-muted-foreground italic hover:bg-accent border-t mt-1 transition-colors"
+                                    >
+                                      Add &ldquo;{newConditionName}&rdquo; as custom condition
+                                    </button>
+                                  )}
+
+                                  {!newConditionName.trim() && icd10Conditions.length === 0 && !loadingIcd10 && (
+                                    <p className="text-xs text-muted-foreground px-3 py-2">No conditions available</p>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </PopoverPrimitive.Content>
+                        </PopoverPrimitive.Portal>
+                      </PopoverPrimitive.Root>
+
                       <p className="text-xs text-muted-foreground">
-                        We'll match this to ICD-10 automatically
+                        {newConditionIcd10Id
+                          ? 'ICD-10 condition selected'
+                          : 'Search ICD-10 list or type a custom condition name'}
                       </p>
                     </div>
                   )}
@@ -655,6 +783,11 @@ export default function HealthEventLogger({
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{file.name}</p>
                         <p className="text-xs text-muted-foreground">{formatFileSize(file.size)}</p>
+                        {file.size > 4 * 1024 * 1024 && (
+                          <p className="text-xs text-amber-600 mt-0.5">
+                            This file is large and may take longer to process
+                          </p>
+                        )}
                       </div>
                       <button onClick={() => removeFile(idx)} className="shrink-0 p-1 rounded hover:bg-muted">
                         <X className="size-3.5 text-muted-foreground" />
@@ -672,28 +805,40 @@ export default function HealthEventLogger({
 
               {/* Extract with AI button */}
               {uploadedFiles.length > 0 && !extractedData && (
-                <button
-                  type="button"
-                  onClick={runExtraction}
-                  disabled={isExtractingAll}
-                  className="flex items-start gap-3 rounded-xl border border-teal-400 bg-teal-50 px-4 py-3 text-left w-full hover:bg-teal-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {isExtractingAll ? (
-                    <Loader2 className="size-4 text-teal-600 shrink-0 mt-0.5 animate-spin" />
-                  ) : (
-                    <Sparkles className="size-4 text-teal-600 shrink-0 mt-0.5" />
-                  )}
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-teal-800">
-                      {isExtractingAll ? 'Reading documents…' : 'Extract details from all documents'}
-                    </p>
-                    {!isExtractingAll && (
-                      <p className="text-xs text-teal-600 mt-0.5">
-                        AI reads all files and fills the form below
-                      </p>
+                <>
+                  <button
+                    type="button"
+                    onClick={runExtraction}
+                    disabled={isExtractingAll}
+                    className="flex items-start gap-3 rounded-xl border border-teal-400 bg-teal-50 px-4 py-3 text-left w-full hover:bg-teal-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {isExtractingAll ? (
+                      <Loader2 className="size-4 text-teal-600 shrink-0 mt-0.5 animate-spin" />
+                    ) : (
+                      <Sparkles className="size-4 text-teal-600 shrink-0 mt-0.5" />
                     )}
-                  </div>
-                </button>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-teal-800">
+                        {isExtractingAll ? 'Extracting…' : 'Extract details from all documents'}
+                      </p>
+                      {!isExtractingAll && (
+                        <p className="text-xs text-teal-600 mt-0.5">
+                          AI reads all files and fills the form below
+                        </p>
+                      )}
+                    </div>
+                  </button>
+
+                  {isExtractingAll && showSlowWarning && (
+                    <p className="text-xs text-muted-foreground text-center">
+                      This is taking longer than usual — large files may take up to 30 seconds.
+                    </p>
+                  )}
+
+                  <p className="text-xs text-muted-foreground text-center">
+                    Documents are processed by Anthropic&apos;s AI and are not stored or used for training.
+                  </p>
+                </>
               )}
 
               {extractionError && (
@@ -709,8 +854,8 @@ export default function HealthEventLogger({
                     <div className="flex items-center gap-2">
                       <Sparkles className="size-3.5 text-teal-600" />
                       <p className="text-sm font-semibold text-teal-900">
-                        Extracted from {uploadedFiles.filter((f) => IMAGE_TYPES.includes(f.type)).length} document
-                        {uploadedFiles.filter((f) => IMAGE_TYPES.includes(f.type)).length > 1 ? 's' : ''}
+                        Extracted from {uploadedFiles.length} document
+                        {uploadedFiles.length > 1 ? 's' : ''}
                       </p>
                     </div>
                     <span
