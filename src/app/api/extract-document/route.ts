@@ -7,9 +7,12 @@ const client = new Anthropic({
 
 export async function POST(request: NextRequest) {
   try {
-    const { imageBase64, mediaType, documentType } = await request.json()
+    const { files, documentType } = await request.json() as {
+      files: Array<{ base64: string; mediaType: string }>
+      documentType?: string
+    }
 
-    if (!imageBase64 || !mediaType) {
+    if (!files || files.length === 0) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -18,7 +21,9 @@ export async function POST(request: NextRequest) {
 
     const prompt = `You are a medical document reader for an Indian family health app.
 
-Carefully analyse this ${documentType || 'medical document'} and extract the following information. Return ONLY a valid JSON object with no additional text, no markdown, no backticks.
+You may receive PDF documents, prescriptions, or lab reports. Extract all clinically relevant information including doctor name, hospital or clinic name, date of visit, diagnosis or condition name, medications prescribed with dosage and frequency, and any clinical notes or instructions. If the document is a scanned image inside a PDF, do your best to read the handwritten or printed text.
+
+Carefully analyse ${files.length > 1 ? 'these medical documents' : `this ${documentType || 'medical document'}`} and extract the following information. Return ONLY a valid JSON object with no additional text, no markdown, no backticks.
 
 Extract these fields:
 {
@@ -49,26 +54,42 @@ Important rules:
 - Dates may be in DD/MM/YYYY format — convert to YYYY-MM-DD.
 - If the document is in Hindi or regional language, still return field values in English.`
 
+    // Build one content block per file
+    type ContentBlock =
+      | { type: 'image'; source: { type: 'base64'; media_type: 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'; data: string } }
+      | { type: 'document'; source: { type: 'base64'; media_type: 'application/pdf'; data: string } }
+      | { type: 'text'; text: string }
+
+    const contentBlocks: ContentBlock[] = files.map(({ base64, mediaType }) => {
+      if (mediaType === 'application/pdf') {
+        return {
+          type: 'document',
+          source: {
+            type: 'base64',
+            media_type: 'application/pdf',
+            data: base64,
+          },
+        }
+      }
+      return {
+        type: 'image',
+        source: {
+          type: 'base64',
+          media_type: mediaType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp',
+          data: base64,
+        },
+      }
+    })
+
+    contentBlocks.push({ type: 'text', text: prompt })
+
     const response = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 1024,
+      max_tokens: 1000,
       messages: [
         {
           role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: {
-                type: 'base64',
-                media_type: mediaType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp',
-                data: imageBase64,
-              },
-            },
-            {
-              type: 'text',
-              text: prompt,
-            },
-          ],
+          content: contentBlocks,
         },
       ],
     })

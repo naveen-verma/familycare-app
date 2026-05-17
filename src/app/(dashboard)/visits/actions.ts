@@ -175,6 +175,7 @@ export type SaveHealthEventInput = {
   memberId: string
   conditionType: 'new' | 'existing' | 'skip'
   conditionName?: string
+  icd10ConditionId?: string | null
   existingConditionId?: string
   visitDetails: {
     doctor_name: string
@@ -224,13 +225,14 @@ export async function saveHealthEventAction(
   let medicalConditionId: string | null = null
   let conditionCreated = false
 
-  // 1 — Create new condition (custom name; WF5 will ICD-10 match in background)
-  if (input.conditionType === 'new' && input.conditionName?.trim()) {
+  // 1 — Create new condition (ICD-10 or custom; WF5 will ICD-10 match custom in background)
+  if (input.conditionType === 'new' && (input.conditionName?.trim() || input.icd10ConditionId)) {
     const { data: condition, error } = await supabase
       .from('medical_conditions')
       .insert({
         family_member_id: input.memberId,
-        custom_name: input.conditionName.trim(),
+        icd10_condition_id: input.icd10ConditionId ?? null,
+        custom_name: input.icd10ConditionId ? null : (input.conditionName?.trim() ?? null),
         status: 'active',
         diagnosed_on: input.visitDetails.visit_date || null,
         diagnosed_by: input.visitDetails.doctor_name || null,
