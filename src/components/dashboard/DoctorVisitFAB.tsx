@@ -22,7 +22,7 @@ export function DoctorVisitFAB({ members, onSuccess, disabled }: DoctorVisitFABP
         aria-label="Log doctor visit"
         className={`
           relative
-          fixed bottom-20 right-4 md:bottom-8 md:right-8 z-40
+          fixed bottom-6 right-6 z-50
           flex items-center gap-2
           bg-teal-600 hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed
           text-white rounded-full shadow-lg hover:shadow-xl
@@ -34,7 +34,7 @@ export function DoctorVisitFAB({ members, onSuccess, disabled }: DoctorVisitFABP
         <span className="hidden sm:inline text-sm font-medium">Log Visit</span>
         {/* Sparkle AI badge */}
         <span className="absolute -top-1 -right-1 size-[18px] rounded-full bg-white ring-1 ring-white shadow-sm flex items-center justify-center pointer-events-none">
-          <Sparkles className="size-[11px] text-teal-500" />
+          <Sparkles className="size-[11px] text-amber-400" />
         </span>
       </button>
 
