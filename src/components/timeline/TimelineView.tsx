@@ -1,13 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Activity, Stethoscope, FileText, Pill, Clock, X } from 'lucide-react'
+import { Activity, Stethoscope, Pill, Clock, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { MemberAvatar } from '@/components/members/MemberAvatar'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-type EventType = 'diagnosis' | 'visit' | 'document' | 'medication'
+type EventType = 'diagnosis' | 'visit' | 'medication'
 
 type HorizontalTimelineEvent = {
   id: string
@@ -30,7 +30,6 @@ const EVENT_CONFIG: Record<EventType, {
 }> = {
   diagnosis:  { bg: '#FCEBEB', color: '#791F1F', Icon: Activity,    label: 'Diagnosis'  },
   visit:      { bg: '#E1F5EE', color: '#085041', Icon: Stethoscope, label: 'Visit'       },
-  document:   { bg: '#E6F1FB', color: '#0C447C', Icon: FileText,    label: 'Document'    },
   medication: { bg: '#EEEDFE', color: '#3C3489', Icon: Pill,        label: 'Medication'  },
 }
 
@@ -49,7 +48,7 @@ async function fetchMemberEvents(memberId: string): Promise<HorizontalTimelineEv
   const supabase = createClient()
   const events: HorizontalTimelineEvent[] = []
 
-  const [condRes, consultRes, docRes, medRes] = await Promise.all([
+  const [condRes, consultRes, medRes] = await Promise.all([
     supabase
       .from('medical_conditions')
       .select('id, diagnosed_on, custom_name, status, icd10_conditions(common_name)')
@@ -66,13 +65,6 @@ async function fetchMemberEvents(memberId: string): Promise<HorizontalTimelineEv
       .eq('medical_conditions.family_member_id', memberId)
       .is('deleted_at', null)
       .not('consultation_date', 'is', null),
-
-    supabase
-      .from('documents')
-      .select('id, document_date, title, document_type')
-      .eq('family_member_id', memberId)
-      .is('deleted_at', null)
-      .not('document_date', 'is', null),
 
     supabase
       .from('medications')
@@ -114,21 +106,6 @@ async function fetchMemberEvents(memberId: string): Promise<HorizontalTimelineEv
       type: 'visit',
       title: condName || (c.consultation_type ?? 'Visit'),
       subtitle: c.doctor_name ?? c.hospital_name ?? '',
-      member_id: memberId,
-    })
-  }
-
-  for (const d of docRes.data ?? []) {
-    const dt = new Date(d.document_date!)
-    events.push({
-      id: `doc-${d.id}`,
-      date: d.document_date!,
-      year: dt.getFullYear(),
-      month: dt.getMonth() + 1,
-      type: 'document',
-      title: d.title || 'Document',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      subtitle: (d as any).document_type ?? '',
       member_id: memberId,
     })
   }
