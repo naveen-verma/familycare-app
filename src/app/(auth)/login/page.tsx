@@ -41,6 +41,7 @@ function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const oauthError = searchParams.get('error') === 'oauth_error'
+  const sessionExpired = searchParams.get('reason') === 'session_expired'
 
   const [value, setValue] = useState('')
   const [loading, setLoading] = useState(false)
@@ -119,6 +120,12 @@ function LoginForm() {
         <CardDescription>Sign in to continue</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+
+        {sessionExpired && (
+          <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded-md">
+            Your session expired due to inactivity. Please log in again.
+          </div>
+        )}
 
         {/* Google SSO — primary */}
         <button
