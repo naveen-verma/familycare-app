@@ -18,11 +18,11 @@ const VALID_DOC_TYPES = ['prescription', 'report', 'scan', 'vaccination', 'other
 function normaliseDocType(raw: string | null | undefined): string | null {
   if (!raw) return null
   const lower = raw.toLowerCase()
-  if (lower.includes('prescription')) return 'prescription'
-  if (lower.includes('lab') || lower.includes('report')) return 'report'
+  if (lower.includes('prescription'))                                          return 'prescription'
+  if (lower.includes('lab') || lower.includes('report'))                      return 'report'
   if (lower.includes('scan') || lower.includes('xray') || lower.includes('mri') || lower.includes('ct')) return 'scan'
-  if (lower.includes('vaccination') || lower.includes('vaccine')) return 'vaccination'
-  if (VALID_DOC_TYPES.includes(lower)) return lower
+  if (lower.includes('vaccination') || lower.includes('vaccine'))             return 'vaccination'
+  if (VALID_DOC_TYPES.includes(lower))                                        return lower
   return 'other'
 }
 
@@ -65,12 +65,26 @@ Rules:
 - document_type: use your best judgment from the content`
 
 export async function POST(request: NextRequest) {
+  console.log('[extract-document] Route called')
+
+  // Guard: confirm API key is present before doing anything
+  if (!process.env.ANTHROPIC_API_KEY) {
+    console.error('[extract-document] ANTHROPIC_API_KEY is not set — cannot call Claude API')
+    return NextResponse.json({ error: 'api_key_missing', documents: [], medications: [] })
+  }
+
   try {
-    const { files } = await request.json() as {
+    const body = await request.json() as {
       files: Array<{ base64: string; mediaType: string; fileName: string; fileSize: number }>
     }
+    const { files } = body
+
+    console.log('[extract-document] Files received:', files?.length ?? 0,
+      files?.map((f) => ({ name: f.fileName, type: f.mediaType, sizeKb: Math.round(f.fileSize / 1024) }))
+    )
 
     if (!files || files.length === 0) {
+      console.warn('[extract-document] No files in request body')
       return NextResponse.json({ error: 'Missing required fields', documents: [], medications: [] })
     }
 
@@ -79,7 +93,8 @@ export async function POST(request: NextRequest) {
       | { type: 'document'; source: { type: 'base64'; media_type: 'application/pdf'; data: string } }
       | { type: 'text'; text: string }
 
-    const contentBlocks: ContentBlock[] = files.map(({ base64, mediaType }) => {
+    const contentBlocks: ContentBlock[] = files.map(({ base64, mediaType, fileName }) => {
+      console.log(`[extract-document] Building content block for ${fileName}: type=${mediaType}`)
       if (mediaType === 'application/pdf') {
         return { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }
       }
@@ -90,33 +105,44 @@ export async function POST(request: NextRequest) {
     })
     contentBlocks.push({ type: 'text', text: EXTRACTION_PROMPT })
 
+    console.log('[extract-document] Calling Claude API — model: claude-sonnet-4-20250514, blocks:', contentBlocks.length)
+
     let rawText = ''
     try {
       const response = await client.messages.create({
-        model: 'claude-sonnet-4-6',
+        model: 'claude-sonnet-4-20250514',
         max_tokens: 1000,
         messages: [{ role: 'user', content: contentBlocks }],
       })
       rawText = response.content[0].type === 'text' ? response.content[0].text.trim() : ''
-    } catch {
+      console.log('[extract-document] Claude response received, raw length:', rawText.length)
+      console.log('[extract-document] Raw response (first 300 chars):', rawText.slice(0, 300))
+    } catch (claudeErr) {
+      console.error('[extract-document] Claude API call failed:', claudeErr)
       return NextResponse.json({ error: 'extraction_failed', documents: [], medications: [] })
     }
 
     let extracted: Record<string, unknown>
     try {
-      const cleaned = rawText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim()
+      // Strip all markdown fences (global replace handles mid-string occurrences)
+      const cleaned = rawText
+        .replace(/```json/g, '')
+        .replace(/```/g, '')
+        .trim()
+      console.log('[extract-document] Cleaned JSON (first 300 chars):', cleaned.slice(0, 300))
       extracted = JSON.parse(cleaned)
-    } catch {
+      console.log('[extract-document] JSON parsed OK — keys:', Object.keys(extracted))
+    } catch (parseErr) {
+      console.error('[extract-document] JSON parse failed:', parseErr, '| raw text was:', rawText)
       return NextResponse.json({ error: 'extraction_failed', documents: [], medications: [] })
     }
 
-    const doctorName    = (extracted.doctor_name   as string | null) ?? null
-    const hospitalName  = (extracted.hospital_name as string | null) ?? null
-    const visitDate     = (extracted.visit_date     as string | null) ?? null
-    const documentType  = normaliseDocType(extracted.document_type as string | null)
+    const doctorName     = (extracted.doctor_name   as string | null) ?? null
+    const hospitalName   = (extracted.hospital_name as string | null) ?? null
+    const visitDate      = (extracted.visit_date    as string | null) ?? null
+    const documentType   = normaliseDocType(extracted.document_type as string | null)
     const extractedNotes = (extracted.notes         as string | null) ?? null
 
-    // Build one document metadata object per uploaded file
     const documents = files.map(({ fileName, fileSize }) => ({
       file_name:     fileName,
       file_size:     fileSize,
@@ -128,21 +154,23 @@ export async function POST(request: NextRequest) {
       notes:         extractedNotes,
     }))
 
-    // Enrich medications
     const medications = ((extracted.medications ?? []) as unknown[]).map((m) => {
       const med = m as Record<string, unknown>
       const freq = (med.frequency as string) ?? null
       return {
-        name:             med.name        ?? '',
-        dose:             med.dose        ?? null,
+        name:             med.name       ?? '',
+        dose:             med.dose       ?? null,
         frequency:        freq,
         time_of_day:      TIME_DEFAULTS[freq ?? ''] ?? ['08:00'],
-        notes:            med.notes       ?? null,
-        start_date:       med.start_date  ?? null,
-        end_date:         med.end_date    ?? null,
+        notes:            med.notes      ?? null,
+        start_date:       med.start_date ?? null,
+        end_date:         med.end_date   ?? null,
         reminder_enabled: false as const,
       }
     })
+
+    console.log('[extract-document] Extraction complete — doctor:', doctorName,
+      'medications:', medications.length, 'documents:', documents.length)
 
     return NextResponse.json({
       doctor_name:   doctorName,
@@ -154,7 +182,7 @@ export async function POST(request: NextRequest) {
       medications,
     })
   } catch (error) {
-    console.error('Document extraction error:', error)
+    console.error('[extract-document] Unhandled error in route:', error)
     return NextResponse.json({ error: 'extraction_failed', documents: [], medications: [] })
   }
 }
