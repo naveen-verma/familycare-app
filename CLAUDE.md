@@ -594,7 +594,7 @@ Status: Reverted from upload flow in v1.5.8 — will be re-introduced
 How it works:
 - User uploads a prescription or report
 - Optional button appears: "Extract details with AI"
-- Calls Claude API (claude-sonnet-4-20250514) with the uploaded image/PDF
+- Calls Claude API (claude-sonnet-4-6) with the uploaded image/PDF
 - Claude extracts structured data and pre-fills the Add Condition form
 - User reviews all extracted fields before saving — never auto-save
 
