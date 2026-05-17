@@ -105,12 +105,12 @@ export async function POST(request: NextRequest) {
     })
     contentBlocks.push({ type: 'text', text: EXTRACTION_PROMPT })
 
-    console.log('[extract-document] Calling Claude API — model: claude-sonnet-4-20250514, blocks:', contentBlocks.length)
+    console.log('[extract-document] Calling Claude API — model: claude-sonnet-4-6, blocks:', contentBlocks.length)
 
     let rawText = ''
     try {
       const response = await client.messages.create({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 1000,
         messages: [{ role: 'user', content: contentBlocks }],
       })
