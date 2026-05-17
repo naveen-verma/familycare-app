@@ -195,6 +195,11 @@ export type SaveHealthEventInput = {
     name: string
     dosage: string
     frequency: string
+    timeOfDay?: string[]
+    notes?: string
+    startDate?: string
+    endDate?: string
+    prescribedBy?: string
     reminderEnabled: boolean
   }>
 }
@@ -290,11 +295,13 @@ export async function saveHealthEventAction(
       name: med.name.trim(),
       dosage: med.dosage?.trim() || null,
       frequency: med.frequency || null,
-      time_of_day: ['08:00'],
-      start_date: input.visitDetails.visit_date || null,
-      prescribed_by: input.visitDetails.doctor_name || null,
+      time_of_day: med.timeOfDay?.length ? med.timeOfDay : ['08:00'],
+      notes: med.notes?.trim() || null,
+      start_date: med.startDate || input.visitDetails.visit_date || null,
+      end_date: med.endDate || null,
+      prescribed_by: med.prescribedBy?.trim() || input.visitDetails.doctor_name || null,
       is_active: true,
-      reminder_enabled: med.reminderEnabled ?? true,
+      reminder_enabled: med.reminderEnabled ?? false,
     })
     if (medError) throw medError
     medicationCount++

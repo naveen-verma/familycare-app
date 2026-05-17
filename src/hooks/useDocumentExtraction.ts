@@ -2,21 +2,21 @@
 
 import { useState } from 'react'
 
+export interface ExtractedMedication {
+  name: string
+  dose: string | null
+  frequency: string | null
+  time_of_day: string[]
+  notes: string | null
+  start_date: string | null
+  end_date: string | null
+  reminder_enabled: false
+}
+
 export interface ExtractedDocumentData {
-  doctor_name: string
-  hospital_name: string
-  visit_date: string
-  condition_name: string
-  condition_notes: string
-  document_type: string
-  medications: Array<{
-    name: string
-    dosage: string
-    frequency: string
-    duration: string
-  }>
-  confidence: 'high' | 'medium' | 'low'
-  language_detected: string
+  prescribed_by: string | null
+  visit_date: string | null
+  medications: ExtractedMedication[]
 }
 
 async function fileToBase64(file: File): Promise<string> {
@@ -60,11 +60,15 @@ export function useDocumentExtraction() {
 
       if (!response.ok) throw new Error('Extraction request failed')
 
-      const result = await response.json()
-      if (!result.success) throw new Error(result.error || 'Extraction failed')
+      const result: ExtractedDocumentData & { error?: string } = await response.json()
 
-      setExtractedData(result.data)
-      return result.data
+      if (result.error) {
+        setExtractionError(result.error)
+        return null
+      }
+
+      setExtractedData(result)
+      return result
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Failed to extract data from document'
