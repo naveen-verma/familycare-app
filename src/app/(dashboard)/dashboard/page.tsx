@@ -119,7 +119,7 @@ export default async function DashboardPage() {
     // All active medications — passed as reminder strip data
     supabase
       .from('medications')
-      .select('id, name, dosage, time_of_day, reminder_enabled, family_member_id, family_members(full_name)')
+      .select('id, name, dosage, notes, time_of_day, reminder_enabled, family_member_id, family_members(full_name)')
       .in('family_member_id', memberIds)
       .eq('is_active', true)
       .or('end_date.is.null,end_date.gte.' + today)
