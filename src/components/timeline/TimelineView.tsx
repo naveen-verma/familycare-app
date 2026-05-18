@@ -257,11 +257,12 @@ export function TimelineView({
             <button
               key={m.id}
               onClick={() => setActiveMemberId(m.id)}
-              className={`flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors min-h-[36px] ${
+              className="flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-opacity min-h-[32px]"
+              style={
                 isActive
-                  ? 'bg-teal-600 text-white border-teal-600'
-                  : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
-              }`}
+                  ? { background: '#0F6E56', color: 'white', border: '0.5px solid #0F6E56' }
+                  : { background: 'var(--color-background-secondary)', color: 'var(--color-text-secondary)', border: '0.5px solid var(--color-border-tertiary)' }
+              }
             >
               <MemberAvatar
                 name={m.full_name}
@@ -283,11 +284,12 @@ export function TimelineView({
             <button
               key={value}
               onClick={() => setActiveFilter(value)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors min-h-[32px] ${
+              className="px-3 py-1.5 rounded-full text-xs font-medium transition-opacity min-h-[32px]"
+              style={
                 isActive
-                  ? 'border-teal-600 text-teal-700 bg-teal-50'
-                  : 'border-gray-200 text-gray-500 bg-white hover:border-gray-300'
-              }`}
+                  ? { background: '#E1F5EE', color: '#0F6E56', border: '0.5px solid #0F6E56' }
+                  : { background: 'transparent', color: 'var(--color-text-secondary)', border: '0.5px solid var(--color-border-tertiary)' }
+              }
             >
               {label}
             </button>

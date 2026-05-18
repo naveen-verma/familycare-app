@@ -1,6 +1,9 @@
 import { getFamilyMembers } from '@/lib/members'
 import { getMedicationsForMember } from '@/lib/medications'
 import { MedicationsView } from '@/components/medications/MedicationsView'
+import { PageShell } from '@/components/layout/PageShell'
+import Link from 'next/link'
+import { Plus } from 'lucide-react'
 
 export default async function MedicationsPage() {
   const members = await getFamilyMembers()
@@ -16,15 +19,28 @@ export default async function MedicationsPage() {
     }))
   )
 
+  const totalMeds = memberMeds.reduce((sum, m) => sum + m.medications.length, 0)
+
   return (
-    <div className="p-4 md:p-6 max-w-3xl mx-auto">
-      <div className="mb-5">
-        <h1 className="font-heading text-xl font-semibold">Medications</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Track current and past medications for your family
-        </p>
-      </div>
+    <PageShell
+      title="Medications"
+      subtitle={
+        totalMeds > 0
+          ? `${totalMeds} medication${totalMeds !== 1 ? 's' : ''} across all members`
+          : 'Track medications for your family'
+      }
+      action={
+        <Link
+          href="/medications/add"
+          className="flex items-center gap-1.5 text-white font-medium hover:opacity-90 transition-opacity"
+          style={{ background: '#0F6E56', borderRadius: 20, padding: '7px 14px', fontSize: 12 }}
+        >
+          <Plus size={13} />
+          Add medication
+        </Link>
+      }
+    >
       <MedicationsView memberMeds={memberMeds} />
-    </div>
+    </PageShell>
   )
 }
