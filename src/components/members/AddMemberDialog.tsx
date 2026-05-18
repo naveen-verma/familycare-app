@@ -27,6 +27,7 @@ import { PlusIcon, ChevronRight } from 'lucide-react'
 import { addMemberAction } from '@/app/(dashboard)/members/actions'
 import { createClient } from '@/lib/supabase/client'
 import { AvatarUploader } from '@/components/members/AvatarUploader'
+import { validateIndianMobile, sanitiseMobile } from '@/lib/validation/inputs'
 
 // ---- BMI utilities (Indian WHO Asia-Pacific cutoffs) ----
 
@@ -50,7 +51,12 @@ const schema = z.object({
   gender: z.string().optional(),
   blood_group: z.string().optional(),
   relation: z.string().min(1, 'Please select a relation'),
-  mobile: z.string().optional(),
+  mobile: z.string()
+    .optional()
+    .refine(
+      (v) => !v || validateIndianMobile(v) === null,
+      { message: 'Enter a valid 10-digit mobile number' }
+    ),
   height_cm: z
     .string()
     .optional()
@@ -146,7 +152,7 @@ export function AddMemberDialog({
         gender: data.gender,
         blood_group: data.blood_group,
         relation: data.relation,
-        mobile: data.mobile,
+        mobile: data.mobile ? sanitiseMobile(data.mobile) : undefined,
         height_cm: height,
         weight_kg: weight,
         bmi,
@@ -321,8 +327,11 @@ export function AddMemberDialog({
                   id="mobile"
                   type="tel"
                   {...register('mobile')}
-                  placeholder="+91 98765 43210"
+                  placeholder="10-digit mobile number"
                 />
+                {errors.mobile && (
+                  <p className="text-xs text-destructive">{errors.mobile.message}</p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">

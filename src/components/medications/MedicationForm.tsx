@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/select'
 import { addMedicationAction, updateMedicationAction } from '@/app/(dashboard)/medications/actions'
 import { AlertCircle, Clock } from 'lucide-react'
+import { validateMedicationName, validateDosage, validateName } from '@/lib/validation/inputs'
 import { toast } from 'sonner'
 import type { MedicationFormInput } from '@/app/(dashboard)/medications/actions'
 
@@ -89,6 +90,9 @@ export function MedicationForm({
   const [loadingConditions, setLoadingConditions] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<{
+    name?: string; dosage?: string; prescribedBy?: string
+  }>({})
 
   // Keep times array length in sync with frequency
   useEffect(() => {
@@ -142,8 +146,13 @@ export function MedicationForm({
     e.preventDefault()
     setError(null)
 
+    const nameErr = validateMedicationName(name) ?? ''
+    const dosageErr = validateDosage(dosage) ?? ''
+    const prescribedByErr = validateName(prescribedBy, 'Prescribed by', false) ?? ''
+    setFieldErrors({ name: nameErr || undefined, dosage: dosageErr || undefined, prescribedBy: prescribedByErr || undefined })
+    if (nameErr || dosageErr || prescribedByErr) return
+
     if (!memberId) { setError('Please select a family member.'); return }
-    if (!name.trim()) { setError('Medication name is required.'); return }
     if (endDate && startDate && endDate <= startDate) {
       setError('End date must be after start date.')
       return
@@ -211,9 +220,11 @@ export function MedicationForm({
         <Input
           id="med_name"
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => { setName(e.target.value); if (fieldErrors.name) setFieldErrors((p) => ({ ...p, name: undefined })) }}
+          onBlur={() => setFieldErrors((p) => ({ ...p, name: validateMedicationName(name) ?? undefined }))}
           placeholder="e.g. Metformin"
         />
+        {fieldErrors.name && <p className="text-red-500 text-xs mt-1">{fieldErrors.name}</p>}
       </div>
 
       {/* 3. Dosage */}
@@ -222,9 +233,11 @@ export function MedicationForm({
         <Input
           id="dosage"
           value={dosage}
-          onChange={(e) => setDosage(e.target.value)}
+          onChange={(e) => { setDosage(e.target.value); if (fieldErrors.dosage) setFieldErrors((p) => ({ ...p, dosage: undefined })) }}
+          onBlur={() => setFieldErrors((p) => ({ ...p, dosage: validateDosage(dosage) ?? undefined }))}
           placeholder="e.g. 500mg"
         />
+        {fieldErrors.dosage && <p className="text-red-500 text-xs mt-1">{fieldErrors.dosage}</p>}
       </div>
 
       {/* 4. Frequency */}
@@ -333,9 +346,11 @@ export function MedicationForm({
         <Input
           id="prescribed_by"
           value={prescribedBy}
-          onChange={(e) => setPrescribedBy(e.target.value)}
+          onChange={(e) => { setPrescribedBy(e.target.value); if (fieldErrors.prescribedBy) setFieldErrors((p) => ({ ...p, prescribedBy: undefined })) }}
+          onBlur={() => setFieldErrors((p) => ({ ...p, prescribedBy: validateName(prescribedBy, 'Prescribed by', false) ?? undefined }))}
           placeholder="Dr. Sharma"
         />
+        {fieldErrors.prescribedBy && <p className="text-red-500 text-xs mt-1">{fieldErrors.prescribedBy}</p>}
       </div>
 
       {/* 10. Reminder */}
@@ -357,7 +372,10 @@ export function MedicationForm({
 
       {/* 11. Notes */}
       <div className="space-y-1.5">
-        <Label htmlFor="med_notes">Notes</Label>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="med_notes">Notes</Label>
+          <span className={`text-xs ${notes.length > 500 ? 'text-red-500' : 'text-gray-400'}`}>{notes.length} / 500</span>
+        </div>
         <Textarea
           id="med_notes"
           value={notes}
@@ -365,6 +383,7 @@ export function MedicationForm({
           placeholder="Any instructions, warnings, or notes..."
           rows={3}
         />
+        {notes.length > 500 && <p className="text-red-500 text-xs mt-1">Notes must be under 500 characters</p>}
       </div>
 
       {error && (
@@ -374,7 +393,7 @@ export function MedicationForm({
         </p>
       )}
 
-      <Button type="submit" disabled={submitting} className="w-full">
+      <Button type="submit" disabled={submitting || notes.length > 500} className="w-full">
         {submitting
           ? editMode ? 'Saving…' : 'Adding…'
           : editMode ? 'Save Changes' : 'Add Medication'}
