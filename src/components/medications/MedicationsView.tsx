@@ -272,11 +272,12 @@ export function MedicationsView({ memberMeds }: { memberMeds: MemberWithMeds[] }
         <button
           type="button"
           onClick={() => setSelectedMemberId(null)}
-          className={`shrink-0 px-3 rounded-full text-xs font-medium transition-colors min-h-[36px] border ${
+          className="shrink-0 px-3 rounded-full text-xs font-medium transition-opacity min-h-[32px]"
+          style={
             selectedMemberId === null
-              ? 'bg-primary text-primary-foreground border-primary'
-              : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'
-          }`}
+              ? { background: '#0F6E56', color: 'white', border: '0.5px solid #0F6E56' }
+              : { background: 'var(--color-background-secondary)', color: 'var(--color-text-secondary)', border: '0.5px solid var(--color-border-tertiary)' }
+          }
         >
           All
         </button>
@@ -290,11 +291,12 @@ export function MedicationsView({ memberMeds }: { memberMeds: MemberWithMeds[] }
               key={m.id}
               type="button"
               onClick={() => selectMember(m.id)}
-              className={`shrink-0 flex items-center gap-1.5 pl-1 pr-3 rounded-full text-xs font-medium transition-colors min-h-[36px] border ${
+              className="shrink-0 flex items-center gap-1.5 pl-1 pr-3 rounded-full text-xs font-medium transition-opacity min-h-[32px]"
+              style={
                 isSelected
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'
-              }`}
+                  ? { background: '#0F6E56', color: 'white', border: '0.5px solid #0F6E56' }
+                  : { background: 'var(--color-background-secondary)', color: 'var(--color-text-secondary)', border: '0.5px solid var(--color-border-tertiary)' }
+              }
             >
               <MemberAvatar
                 name={m.full_name}
