@@ -4,19 +4,9 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { updateUserProfile, createPrimaryFamilyMember } from '@/lib/onboarding'
-import { validateName, validateIndianMobile, sanitiseMobile } from '@/lib/validation/inputs'
 import { createClient } from '@/lib/supabase/client'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
 import {
   Select,
   SelectContent,
@@ -24,6 +14,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Loader2 } from 'lucide-react'
+import { AuthShell } from '@/components/layout/AuthShell'
+import { validateName, validateIndianMobile, sanitiseMobile } from '@/lib/validation/inputs'
 
 const INDIAN_STATES = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar',
@@ -32,27 +25,64 @@ const INDIAN_STATES = [
   'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab',
   'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura',
   'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
-  'Delhi', 'Jammu & Kashmir', 'Ladakh', 'Puducherry'
+  'Delhi', 'Jammu & Kashmir', 'Ladakh', 'Puducherry',
 ]
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-']
+
+const GENDER_OPTIONS = [
+  { value: 'male',   label: 'Male'   },
+  { value: 'female', label: 'Female' },
+  { value: 'other',  label: 'Other'  },
+]
+
+function calculateAge(dobStr: string): number {
+  const today = new Date()
+  const birth = new Date(dobStr)
+  let age = today.getFullYear() - birth.getFullYear()
+  const m = today.getMonth() - birth.getMonth()
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--
+  return age
+}
+
+function calcBMI(h: number, w: number) { return w / Math.pow(h / 100, 2) }
+
+function bmiClassification(value: number): { label: string; cls: string } {
+  if (value < 18.5) return { label: 'Underweight', cls: 'bg-blue-100 text-blue-700' }
+  if (value < 23.0) return { label: 'Normal', cls: 'bg-green-100 text-green-700' }
+  if (value < 25.0) return { label: 'Overweight', cls: 'bg-yellow-100 text-yellow-700' }
+  if (value < 30.0) return { label: 'Obese Class I', cls: 'bg-orange-100 text-orange-700' }
+  return { label: 'Obese Class II', cls: 'bg-red-100 text-red-700' }
+}
+
+const labelStyle: React.CSSProperties = {
+  fontSize: 12, fontWeight: 500, color: 'var(--color-text-primary)',
+  marginBottom: 4, display: 'block',
+}
+const primaryBtn = (disabled: boolean): React.CSSProperties => ({
+  width: '100%', background: disabled ? '#9CA3AF' : '#0F6E56',
+  borderRadius: 20, padding: '9px 18px', fontSize: 13, fontWeight: 500,
+  color: 'white', border: 'none', cursor: disabled ? 'not-allowed' : 'pointer',
+  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+  transition: 'opacity 150ms',
+})
 
 export default function OnboardingPage() {
   const router = useRouter()
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [nameError, setNameError] = useState('')
-  const [mobileError, setMobileError] = useState('')
 
-  // Step 1 data
+  // Step 1
   const [fullName, setFullName] = useState('')
   const [mobile, setMobile] = useState('')
   const [city, setCity] = useState('')
   const [state, setState] = useState('')
   const [termsAccepted, setTermsAccepted] = useState(false)
+  const [nameError, setNameError] = useState('')
+  const [mobileError, setMobileError] = useState('')
 
-  // Step 2 data
+  // Step 2
   const [dob, setDob] = useState('')
   const [ageDeclarationAccepted, setAgeDeclarationAccepted] = useState(false)
   const [gender, setGender] = useState('')
@@ -60,77 +90,45 @@ export default function OnboardingPage() {
   const [heightCm, setHeightCm] = useState('')
   const [weightKg, setWeightKg] = useState('')
 
-  function calculateAge(dobStr: string): number {
-    const today = new Date()
-    const birth = new Date(dobStr)
-    let age = today.getFullYear() - birth.getFullYear()
-    const m = today.getMonth() - birth.getMonth()
-    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--
-    return age
-  }
-
   const userAge = dob ? calculateAge(dob) : null
   const isUnderAge = userAge !== null && userAge < 18
+
+  const bmi =
+    heightCm && weightKg
+      ? calcBMI(Number(heightCm), Number(weightKg))
+      : null
+
+  const formatMobile = (val: string) => val.replace(/\D/g, '').slice(0, 10)
 
   function handleDobChange(value: string) {
     setDob(value)
     setAgeDeclarationAccepted(false)
   }
 
-  const formatMobile = (val: string) =>
-    val.replace(/\D/g, '').slice(0, 10)
-
-  const bmi =
-    heightCm && weightKg
-      ? Number(weightKg) / Math.pow(Number(heightCm) / 100, 2)
-      : null
-
-  function bmiClassification(value: number): { label: string; className: string } {
-    if (value < 18.5) return { label: 'Underweight', className: 'bg-blue-100 text-blue-700 border border-blue-200' }
-    if (value < 23.0) return { label: 'Normal', className: 'bg-green-100 text-green-700 border border-green-200' }
-    if (value < 25.0) return { label: 'Overweight', className: 'bg-yellow-100 text-yellow-700 border border-yellow-200' }
-    if (value < 30.0) return { label: 'Obese Class I', className: 'bg-orange-100 text-orange-700 border border-orange-200' }
-    return { label: 'Obese Class II', className: 'bg-red-100 text-red-700 border border-red-200' }
-  }
-
   const handleStep1 = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-
     const nErr = validateName(fullName, 'Full name', true) ?? ''
     const mErr = validateIndianMobile(mobile, false) ?? ''
     setNameError(nErr)
     setMobileError(mErr)
     if (nErr || mErr) return
-
     if (!termsAccepted) {
       setError('Please accept the Terms of Service, Privacy Policy and Medical Disclaimer to continue')
       return
     }
-
     setLoading(true)
     try {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       const cleanMobile = mobile ? sanitiseMobile(mobile) : ''
-
-      await updateUserProfile({
-        full_name: fullName.trim(),
-        mobile: cleanMobile,
-        city: city.trim(),
-        state
-      })
-
+      await updateUserProfile({ full_name: fullName.trim(), mobile: cleanMobile, city: city.trim(), state })
       if (user) {
-        await supabase
-          .from('users')
-          .update({ terms_accepted_at: new Date().toISOString() })
-          .eq('supabase_auth_id', user.id)
+        await supabase.from('users').update({ terms_accepted_at: new Date().toISOString() }).eq('supabase_auth_id', user.id)
       }
-
       setStep(2)
-    } catch (err: any) {
-      setError(err.message || 'Something went wrong')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
       setLoading(false)
     }
@@ -139,19 +137,13 @@ export default function OnboardingPage() {
   const handleStep2 = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-
-    if (!dob) {
-      setError('Please enter your date of birth')
-      return
-    }
-
+    if (!dob) { setError('Please enter your date of birth'); return }
     setLoading(true)
     try {
       const heightVal = heightCm ? parseFloat(heightCm) : null
       const weightVal = weightKg ? parseFloat(weightKg) : null
       const bmiVal = bmi ? parseFloat(bmi.toFixed(1)) : null
       const bmiDate = heightVal && weightVal ? new Date().toISOString().split('T')[0] : null
-
       await createPrimaryFamilyMember({
         full_name: fullName.trim(),
         date_of_birth: dob,
@@ -163,285 +155,259 @@ export default function OnboardingPage() {
         bmi_date: bmiDate,
       })
       router.push('/dashboard')
-    } catch (err: any) {
-      setError(err.message || 'Something went wrong')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
       setLoading(false)
     }
   }
 
+  const step2Disabled = loading || !dob || isUnderAge || !ageDeclarationAccepted
+
+  /* ── Step 1 ─────────────────────────────────────────────── */
+  if (step === 1) {
+    return (
+      <AuthShell
+        title="Tell us about yourself"
+        subtitle="This helps us personalise your experience"
+        step={1}
+        totalSteps={2}
+      >
+        <form onSubmit={handleStep1} className="space-y-4">
+
+          <div>
+            <label style={labelStyle}>Full Name *</label>
+            <Input
+              placeholder="Naveen Kumar"
+              value={fullName}
+              onChange={(e) => { setFullName(e.target.value); if (nameError) setNameError('') }}
+              onBlur={() => setNameError(validateName(fullName, 'Full name', true) ?? '')}
+              autoFocus
+            />
+            {nameError && <p className="text-red-500 mt-1" style={{ fontSize: 11 }}>{nameError}</p>}
+          </div>
+
+          <div>
+            <label style={labelStyle}>Mobile Number <span style={{ color: 'var(--color-text-tertiary)' }}>(optional)</span></label>
+            <div className="flex items-center rounded-lg overflow-hidden"
+              style={{ border: '0.5px solid var(--color-border-tertiary)' }}>
+              <span className="shrink-0 px-3 text-sm"
+                style={{ color: 'var(--color-text-secondary)', borderRight: '0.5px solid var(--color-border-tertiary)', paddingBlock: 9 }}>
+                🇮🇳 +91
+              </span>
+              <input
+                type="tel"
+                placeholder="10-digit number"
+                value={mobile}
+                onChange={(e) => { setMobile(formatMobile(e.target.value)); if (mobileError) setMobileError('') }}
+                onBlur={() => setMobileError(validateIndianMobile(mobile, false) ?? '')}
+                maxLength={10}
+                style={{ flex: 1, padding: '9px 12px', fontSize: 13, outline: 'none', background: 'transparent', border: 'none', color: 'var(--color-text-primary)' }}
+              />
+            </div>
+            {mobileError && <p className="text-red-500 mt-1" style={{ fontSize: 11 }}>{mobileError}</p>}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label style={labelStyle}>City</label>
+              <Input placeholder="Delhi" value={city} onChange={(e) => setCity(e.target.value)} />
+            </div>
+            <div>
+              <label style={labelStyle}>State</label>
+              <Select value={state} onValueChange={setState}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  {INDIAN_STATES.map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Terms */}
+          <div className="flex items-start gap-3 rounded-lg px-3 py-3"
+            style={{ background: 'var(--color-background-secondary)', border: '0.5px solid var(--color-border-tertiary)' }}>
+            <Checkbox
+              id="terms"
+              checked={termsAccepted}
+              onCheckedChange={(checked) => setTermsAccepted(checked === true)}
+              className="mt-0.5 shrink-0"
+            />
+            <label htmlFor="terms" className="leading-relaxed cursor-pointer" style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
+              I agree to the{' '}
+              <Link href="/terms" target="_blank" className="hover:underline font-medium" style={{ color: '#0F6E56' }}>Terms of Service</Link>
+              ,{' '}
+              <Link href="/privacy" target="_blank" className="hover:underline font-medium" style={{ color: '#0F6E56' }}>Privacy Policy</Link>
+              {' '}and{' '}
+              <Link href="/disclaimer" target="_blank" className="hover:underline font-medium" style={{ color: '#0F6E56' }}>Medical Disclaimer</Link>
+              . I understand FamilyCare is not a substitute for professional medical advice.
+            </label>
+          </div>
+
+          {error && (
+            <div className="text-red-500 rounded-lg px-3 py-2" style={{ fontSize: 12, background: '#FEF2F2' }}>
+              {error}
+            </div>
+          )}
+
+          <button type="submit" disabled={loading || !termsAccepted} style={primaryBtn(loading || !termsAccepted)}>
+            {loading ? <><Loader2 size={14} className="animate-spin" /> Saving…</> : 'Continue →'}
+          </button>
+        </form>
+      </AuthShell>
+    )
+  }
+
+  /* ── Step 2 ─────────────────────────────────────────────── */
   return (
-    <Card className="shadow-lg border-0">
-      {/* Progress Indicator */}
-      <div className="px-6 pt-6">
-        <div className="flex items-center gap-2 mb-2">
-          <div className={`h-2 flex-1 rounded-full ${step >= 1 ? 'bg-indigo-600' : 'bg-gray-200'}`} />
-          <div className={`h-2 flex-1 rounded-full ${step >= 2 ? 'bg-indigo-600' : 'bg-gray-200'}`} />
-        </div>
-        <p className="text-xs text-gray-500 text-right">Step {step} of 2</p>
+    <>
+      {/* Back link above card */}
+      <div className="flex justify-center" style={{ paddingTop: 32, background: 'var(--color-background-secondary)' }}>
+        <button
+          onClick={() => setStep(1)}
+          style={{ fontSize: 12, color: 'var(--color-text-tertiary)', background: 'none', border: 'none', cursor: 'pointer' }}
+          className="hover:opacity-70 transition-opacity"
+        >
+          ← Back
+        </button>
       </div>
 
-      {/* Step 1 — Personal Details */}
-      {step === 1 && (
-        <>
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-xl font-semibold">
-              Tell us about yourself
-            </CardTitle>
-            <CardDescription>
-              This helps us personalise your FamilyCare experience
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleStep1} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name *</Label>
-                <Input
-                  id="fullName"
-                  placeholder="Naveen Kumar"
-                  value={fullName}
-                  onChange={e => { setFullName(e.target.value); if (nameError) setNameError('') }}
-                  onBlur={() => setNameError(validateName(fullName, 'Full name', true) ?? '')}
-                  autoFocus
-                />
-                {nameError && <p className="text-red-500 text-xs mt-1">{nameError}</p>}
-              </div>
+      <AuthShell
+        title="Health information"
+        subtitle="Used to personalise health insights"
+        step={2}
+        totalSteps={2}
+        showLogo={false}
+      >
+        <form onSubmit={handleStep2} className="space-y-4">
 
-              <div className="space-y-2">
-                <Label htmlFor="mobile">Mobile Number</Label>
-                <div className="flex gap-2">
-                  <div className="flex items-center px-3 bg-gray-100 border border-gray-200 rounded-md text-sm text-gray-600 font-medium">
-                    🇮🇳 +91
-                  </div>
-                  <Input
-                    id="mobile"
-                    type="tel"
-                    placeholder="10-digit mobile number"
-                    value={mobile}
-                    onChange={e => { setMobile(formatMobile(e.target.value)); if (mobileError) setMobileError('') }}
-                    onBlur={() => setMobileError(validateIndianMobile(mobile, false) ?? '')}
-                    maxLength={10}
-                    className="flex-1"
-                  />
-                </div>
-                {mobileError && <p className="text-red-500 text-xs mt-1">{mobileError}</p>}
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label htmlFor="city">City</Label>
-                  <Input
-                    id="city"
-                    placeholder="Delhi"
-                    value={city}
-                    onChange={e => setCity(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="state">State</Label>
-                  <Select value={state} onValueChange={setState}>
-                    <SelectTrigger id="state">
-                      <SelectValue placeholder="Select" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {INDIAN_STATES.map(s => (
-                        <SelectItem key={s} value={s}>{s}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3 rounded-lg border bg-gray-50 px-3 py-3">
-                <Checkbox
-                  id="terms"
-                  checked={termsAccepted}
-                  onCheckedChange={(checked) => setTermsAccepted(checked === true)}
-                  className="mt-0.5 shrink-0"
-                />
-                <label htmlFor="terms" className="text-sm text-gray-600 leading-relaxed cursor-pointer">
-                  I agree to the{' '}
-                  <Link href="/terms" target="_blank" className="text-indigo-600 hover:underline font-medium">
-                    Terms of Service
-                  </Link>
-                  ,{' '}
-                  <Link href="/privacy" target="_blank" className="text-indigo-600 hover:underline font-medium">
-                    Privacy Policy
-                  </Link>{' '}
-                  and{' '}
-                  <Link href="/disclaimer" target="_blank" className="text-indigo-600 hover:underline font-medium">
-                    Medical Disclaimer
-                  </Link>
-                  . I understand that FamilyCare is a health record management tool and not a substitute for professional medical advice.
-                </label>
-              </div>
-
-              {error && (
-                <div className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-md">
-                  {error}
-                </div>
-              )}
-
-              <Button
-                type="submit"
-                className="w-full bg-indigo-600 hover:bg-indigo-700"
-                disabled={loading || !termsAccepted}
-              >
-                {loading ? 'Saving...' : 'Continue →'}
-              </Button>
-            </form>
-          </CardContent>
-        </>
-      )}
-
-      {/* Step 2 — Health Details */}
-      {step === 2 && (
-        <>
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-xl font-semibold">
-              Your health details
-            </CardTitle>
-            <CardDescription>
-              Basic health information for {fullName || 'you'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleStep2} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="dob">Date of Birth *</Label>
-                <Input
-                  id="dob"
-                  type="date"
-                  value={dob}
-                  onChange={e => handleDobChange(e.target.value)}
-                  max={new Date().toISOString().split('T')[0]}
-                />
-                {dob && isUnderAge && (
-                  <div className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-md">
-                    FamilyCare is available for users aged 18 and above. Please ask a parent or guardian to create an account.
-                  </div>
-                )}
-              </div>
-
-              {dob && !isUnderAge && userAge !== null && (
-                <div className="flex items-start gap-3 rounded-lg border bg-gray-50 px-3 py-3">
-                  <Checkbox
-                    id="ageDeclaration"
-                    checked={ageDeclarationAccepted}
-                    onCheckedChange={(checked) => setAgeDeclarationAccepted(checked === true)}
-                    className="mt-0.5 shrink-0"
-                  />
-                  <label htmlFor="ageDeclaration" className="text-sm text-gray-600 leading-relaxed cursor-pointer">
-                    I confirm that I am 18 years of age or older
-                  </label>
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <Label htmlFor="gender">Gender</Label>
-                <Select value={gender} onValueChange={setGender}>
-                  <SelectTrigger id="gender">
-                    <SelectValue placeholder="Select gender" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="male">Male</SelectItem>
-                    <SelectItem value="female">Female</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="bloodGroup">Blood Group</Label>
-                <Select value={bloodGroup} onValueChange={setBloodGroup}>
-                  <SelectTrigger id="bloodGroup">
-                    <SelectValue placeholder="Select blood group" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {BLOOD_GROUPS.map(bg => (
-                      <SelectItem key={bg} value={bg}>{bg}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label htmlFor="heightCm">
-                    Height (cm){' '}
-                    <span className="text-muted-foreground font-normal text-xs">(optional)</span>
-                  </Label>
-                  <Input
-                    id="heightCm"
-                    type="number"
-                    placeholder="e.g. 165"
-                    value={heightCm}
-                    onChange={e => setHeightCm(e.target.value)}
-                    min={50}
-                    max={250}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="weightKg">
-                    Weight (kg){' '}
-                    <span className="text-muted-foreground font-normal text-xs">(optional)</span>
-                  </Label>
-                  <Input
-                    id="weightKg"
-                    type="number"
-                    placeholder="e.g. 68"
-                    value={weightKg}
-                    onChange={e => setWeightKg(e.target.value)}
-                    min={2}
-                    max={300}
-                  />
-                </div>
-              </div>
-
-              {bmi !== null && (
-                <div className="rounded-md bg-gray-50 border px-3 py-2.5 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-muted-foreground">BMI (auto-calculated)</p>
-                    <p className="text-sm font-semibold">{bmi.toFixed(1)}</p>
-                  </div>
-                  <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${bmiClassification(bmi).className}`}>
-                    {bmiClassification(bmi).label}
-                  </span>
-                </div>
-              )}
-
-              {error && (
-                <div className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-md">
-                  {error}
-                </div>
-              )}
-
-              <div className="flex gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => setStep(1)}
-                  disabled={loading}
-                >
-                  ← Back
-                </Button>
-                <Button
-                  type="submit"
-                  className="flex-1 bg-indigo-600 hover:bg-indigo-700"
-                  disabled={loading || !dob || isUnderAge || !ageDeclarationAccepted}
-                >
-                  {loading ? 'Setting up...' : 'Get Started 🎉'}
-                </Button>
-              </div>
-
-              <p className="text-xs text-center text-gray-500">
-                You can add more family members after setup
+          <div>
+            <label style={labelStyle}>Date of Birth *</label>
+            <Input
+              type="date"
+              value={dob}
+              onChange={(e) => handleDobChange(e.target.value)}
+              max={new Date().toISOString().split('T')[0]}
+            />
+            {dob && isUnderAge && (
+              <p className="mt-1" style={{ fontSize: 11, color: '#EF4444', background: '#FEF2F2', padding: '6px 10px', borderRadius: 6 }}>
+                FamilyCare is available for users aged 18 and above. Please ask a parent or guardian to create an account.
               </p>
-            </form>
-          </CardContent>
-        </>
-      )}
-    </Card>
+            )}
+          </div>
+
+          {dob && !isUnderAge && userAge !== null && (
+            <div className="flex items-start gap-3 rounded-lg px-3 py-3"
+              style={{ background: 'var(--color-background-secondary)', border: '0.5px solid var(--color-border-tertiary)' }}>
+              <Checkbox
+                id="ageDeclaration"
+                checked={ageDeclarationAccepted}
+                onCheckedChange={(checked) => setAgeDeclarationAccepted(checked === true)}
+                className="mt-0.5 shrink-0"
+              />
+              <label htmlFor="ageDeclaration" className="cursor-pointer" style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
+                I confirm that I am 18 years of age or older
+              </label>
+            </div>
+          )}
+
+          {/* Gender pill selector */}
+          <div>
+            <label style={labelStyle}>Gender</label>
+            <div className="grid grid-cols-3 gap-2">
+              {GENDER_OPTIONS.map(({ value, label }) => {
+                const selected = gender === value
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setGender(selected ? '' : value)}
+                    className="py-1.5 text-center transition-colors"
+                    style={{
+                      borderRadius: 20,
+                      fontSize: 12,
+                      fontWeight: 500,
+                      border: selected ? 'none' : '0.5px solid var(--color-border-tertiary)',
+                      background: selected ? '#0F6E56' : 'transparent',
+                      color: selected ? 'white' : 'var(--color-text-secondary)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Blood group */}
+          <div>
+            <label style={labelStyle}>Blood Group</label>
+            <Select value={bloodGroup} onValueChange={setBloodGroup}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select blood group" />
+              </SelectTrigger>
+              <SelectContent>
+                {BLOOD_GROUPS.map((bg) => (
+                  <SelectItem key={bg} value={bg}>{bg}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Height + Weight */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label style={labelStyle}>Height (cm) <span style={{ color: 'var(--color-text-tertiary)', fontWeight: 400 }}>(optional)</span></label>
+              <Input
+                type="number" placeholder="e.g. 165"
+                value={heightCm} onChange={(e) => setHeightCm(e.target.value)}
+                min={50} max={250}
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>Weight (kg) <span style={{ color: 'var(--color-text-tertiary)', fontWeight: 400 }}>(optional)</span></label>
+              <Input
+                type="number" placeholder="e.g. 68"
+                value={weightKg} onChange={(e) => setWeightKg(e.target.value)}
+                min={2} max={300}
+              />
+            </div>
+          </div>
+
+          {/* BMI display */}
+          {bmi !== null && (
+            <div className="flex items-center justify-between rounded-lg px-3 py-2.5"
+              style={{ background: 'var(--color-background-secondary)', border: '0.5px solid var(--color-border-tertiary)' }}>
+              <div>
+                <p style={{ fontSize: 10, color: 'var(--color-text-tertiary)' }}>BMI (auto-calculated)</p>
+                <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)' }}>{bmi.toFixed(1)}</p>
+              </div>
+              <span className={`text-xs font-medium rounded-full px-2.5 py-1 ${bmiClassification(bmi).cls}`}>
+                {bmiClassification(bmi).label}
+              </span>
+            </div>
+          )}
+
+          {error && (
+            <div className="text-red-500 rounded-lg px-3 py-2" style={{ fontSize: 12, background: '#FEF2F2' }}>
+              {error}
+            </div>
+          )}
+
+          <button type="submit" disabled={step2Disabled} style={primaryBtn(step2Disabled)}>
+            {loading ? <><Loader2 size={14} className="animate-spin" /> Setting up…</> : 'Get started →'}
+          </button>
+
+          <p className="text-center" style={{ fontSize: 11, color: 'var(--color-text-tertiary)' }}>
+            You can add more family members after setup
+          </p>
+        </form>
+      </AuthShell>
+    </>
   )
 }
