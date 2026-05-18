@@ -15,7 +15,7 @@ export function DoctorVisitFAB({ members, onSuccess, disabled }: DoctorVisitFABP
   const [open, setOpen] = useState(false)
 
   return (
-    <>
+    <div className="md:hidden">
       <button
         onClick={() => !disabled && setOpen(true)}
         disabled={disabled}
@@ -43,6 +43,6 @@ export function DoctorVisitFAB({ members, onSuccess, disabled }: DoctorVisitFABP
         familyMembers={members}
         onSuccess={onSuccess}
       />
-    </>
+    </div>
   )
 }
