@@ -35,9 +35,17 @@ export function SessionTimeout() {
   const routerRef = useRef(router)
   routerRef.current = router
 
+  // Tracks whether warning modal is visible — read by activity handler to skip resets
+  const showWarningRef = useRef(false)
+
   // Exposed to button handlers — wired up inside useEffect
   const resetIdleRef = useRef<() => void>(() => {})
   const signOutNowRef = useRef<() => Promise<void>>(async () => {})
+
+  // Keep ref in sync so the activity handler inside useEffect([]) never reads stale state
+  useEffect(() => {
+    showWarningRef.current = showWarning
+  }, [showWarning])
 
   useEffect(() => {
     function clearAll() {
@@ -80,16 +88,23 @@ export function SessionTimeout() {
     resetIdleRef.current = resetIdle
     signOutNowRef.current = signOut
 
+    // Activity events only reset the idle timer when the warning modal is NOT open.
+    // Once the modal is visible it must stay up until the user clicks a button.
+    function handleActivity() {
+      if (showWarningRef.current) return
+      resetIdle()
+    }
+
     const EVENTS = [
       'mousemove', 'mousedown', 'keypress',
       'touchstart', 'scroll', 'click',
     ] as const
 
-    EVENTS.forEach((e) => window.addEventListener(e, resetIdle, { passive: true }))
+    EVENTS.forEach((e) => window.addEventListener(e, handleActivity, { passive: true }))
     resetIdle()
 
     return () => {
-      EVENTS.forEach((e) => window.removeEventListener(e, resetIdle))
+      EVENTS.forEach((e) => window.removeEventListener(e, handleActivity))
       clearAll()
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
