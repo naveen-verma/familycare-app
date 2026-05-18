@@ -3,17 +3,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Loader2 } from 'lucide-react'
+import { AuthShell } from '@/components/layout/AuthShell'
 import { checkOnboardingStatus } from '@/lib/user'
-
 
 export default function VerifyPage() {
   const router = useRouter()
@@ -28,16 +20,13 @@ export default function VerifyPage() {
   useEffect(() => {
     const phone = sessionStorage.getItem('familycare_phone')
     const email = sessionStorage.getItem('familycare_email')
-    if (!phone && !email) {
-      router.push('/login')
-      return
-    }
+    if (!phone && !email) { router.push('/login'); return }
     setContact(phone || email || '')
   }, [router])
 
   useEffect(() => {
     if (countdown <= 0) return
-    const timer = setTimeout(() => setCountdown(c => c - 1), 1000)
+    const timer = setTimeout(() => setCountdown((c) => c - 1), 1000)
     return () => clearTimeout(timer)
   }, [countdown])
 
@@ -46,9 +35,7 @@ export default function VerifyPage() {
     const newOtp = [...otp]
     newOtp[index] = digit
     setOtp(newOtp)
-    if (digit && index < 5) {
-      inputRefs.current[index + 1]?.focus()
-    }
+    if (digit && index < 5) inputRefs.current[index + 1]?.focus()
   }
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
@@ -61,48 +48,29 @@ export default function VerifyPage() {
     e.preventDefault()
     const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
     const newOtp = [...otp]
-    pasted.split('').forEach((digit, i) => {
-      if (i < 6) newOtp[i] = digit
-    })
+    pasted.split('').forEach((digit, i) => { if (i < 6) newOtp[i] = digit })
     setOtp(newOtp)
     inputRefs.current[Math.min(pasted.length, 5)]?.focus()
   }
 
   const handleVerify = async () => {
     const otpString = otp.join('')
-    if (otpString.length !== 6) {
-      setError('Please enter the complete 6-digit OTP')
-      return
-    }
-
+    if (otpString.length !== 6) { setError('Please enter the complete 6-digit code'); return }
     setLoading(true)
     setError('')
-
     try {
       const supabase = createClient()
       const isPhone = contact.startsWith('+')
-
       const { error } = await supabase.auth.verifyOtp(
         isPhone
           ? { phone: contact, token: otpString, type: 'sms' }
           : { email: contact, token: otpString, type: 'email' }
       )
-
-      if (error) {
-        setError(error.message)
-        return
-      }
-
+      if (error) { setError(error.message); return }
       sessionStorage.removeItem('familycare_phone')
       sessionStorage.removeItem('familycare_email')
       const completed = await checkOnboardingStatus()
-      if (completed) {
-        router.push('/dashboard')
-      } else {
-        router.push('/onboarding')
-      }
-      
-
+      router.push(completed ? '/dashboard' : '/onboarding')
     } catch {
       setError('Verification failed. Please try again.')
     } finally {
@@ -116,20 +84,14 @@ export default function VerifyPage() {
     try {
       const supabase = createClient()
       const isPhone = contact.startsWith('+')
-
       if (isPhone) {
         await supabase.auth.signInWithOtp({ phone: contact })
       } else {
-        await supabase.auth.signInWithOtp({
-          email: contact,
-          options: { shouldCreateUser: true }
-        })
+        await supabase.auth.signInWithOtp({ email: contact, options: { shouldCreateUser: true } })
       }
-
       setCountdown(30)
       setOtp(['', '', '', '', '', ''])
       inputRefs.current[0]?.focus()
-
     } catch {
       setError('Failed to resend OTP.')
     } finally {
@@ -141,93 +103,96 @@ export default function VerifyPage() {
     ? `+91 ${contact.slice(3, 7)}XXXXXX`
     : contact.replace(/(.{2}).*(@.*)/, '$1****$2')
 
-  return (
-    <Card className="shadow-lg border-0">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-xl font-semibold">
-          Verify your {contact.startsWith('+') ? 'number' : 'email'}
-        </CardTitle>
-        <CardDescription>
-          Enter the 6-digit code sent to{' '}
-          <span className="font-medium text-gray-700">{maskedContact}</span>
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
+  const otpComplete = otp.join('').length === 6
 
+  const boxStyle = (filled: boolean, focused: boolean): React.CSSProperties => ({
+    width: 44, height: 44,
+    border: `0.5px solid ${focused ? '#0F6E56' : 'var(--color-border-tertiary)'}`,
+    borderRadius: 8,
+    fontSize: 20, fontWeight: 500, textAlign: 'center',
+    background: 'var(--color-background-primary)',
+    color: 'var(--color-text-primary)',
+    outline: 'none',
+    transition: 'border-color 150ms ease',
+  })
+
+  return (
+    <AuthShell
+      title="Enter verification code"
+      subtitle={`We sent a 6-digit code to ${maskedContact}`}
+    >
+      <div className="space-y-5">
         {process.env.NODE_ENV === 'development' && (
-          <div className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-md">
-            🔧 Dev mode — check OTP at{' '}
+          <div className="text-xs px-3 py-2 rounded-lg"
+            style={{ background: '#FAEEDA', color: '#633806' }}>
+            Dev mode — check OTP at{' '}
             <a href="http://127.0.0.1:54324" target="_blank" className="underline">
               localhost:54324
             </a>
           </div>
         )}
 
-        <div className="flex gap-2 justify-center">
+        {/* OTP boxes */}
+        <div className="flex justify-center" style={{ gap: 8 }}>
           {otp.map((digit, index) => (
-            <Input
+            <input
               key={index}
-              ref={el => { inputRefs.current[index] = el }}
+              ref={(el) => { inputRefs.current[index] = el }}
               type="tel"
               maxLength={1}
               value={digit}
-              onChange={e => handleOtpChange(index, e.target.value)}
-              onKeyDown={e => handleKeyDown(index, e)}
+              onChange={(e) => handleOtpChange(index, e.target.value)}
+              onKeyDown={(e) => handleKeyDown(index, e)}
               onPaste={handlePaste}
-              className="w-11 h-12 text-center text-xl font-bold border-2 focus:border-indigo-500 rounded-lg"
+              style={boxStyle(!!digit, false)}
+              onFocus={(e) => { e.target.style.borderColor = '#0F6E56' }}
+              onBlur={(e) => { e.target.style.borderColor = digit ? '#0F6E56' : 'var(--color-border-tertiary)' }}
               autoFocus={index === 0}
             />
           ))}
         </div>
 
         {error && (
-          <div className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-md text-center">
-            {error}
-          </div>
+          <p className="text-red-500 text-center" style={{ fontSize: 12 }}>{error}</p>
         )}
 
-        <Button
+        {/* Verify button */}
+        <button
           onClick={handleVerify}
-          className="w-full bg-indigo-600 hover:bg-indigo-700"
-          disabled={loading || otp.join('').length !== 6}
+          disabled={loading || !otpComplete}
+          className="w-full flex items-center justify-center gap-2 text-white font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
+          style={{ background: '#0F6E56', borderRadius: 20, padding: '9px 18px', fontSize: 13 }}
         >
-          {loading ? (
-            <span className="flex items-center gap-2">
-              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-              </svg>
-              Verifying...
-            </span>
-          ) : (
-            'Verify OTP'
-          )}
-        </Button>
+          {loading ? <><Loader2 size={14} className="animate-spin" /> Verifying…</> : 'Verify'}
+        </button>
 
-        <div className="text-center text-sm text-gray-500">
+        {/* Resend */}
+        <div className="text-center" style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>
           {countdown > 0 ? (
-            <span>Resend OTP in {countdown}s</span>
+            <span>Resend in {countdown}s</span>
           ) : (
             <button
               onClick={handleResend}
               disabled={resending}
-              className="text-indigo-600 font-medium hover:underline disabled:opacity-50"
+              className="font-medium hover:opacity-70 transition-opacity disabled:opacity-50"
+              style={{ color: '#0F6E56', background: 'none', border: 'none', cursor: 'pointer' }}
             >
-              {resending ? 'Sending...' : 'Resend OTP'}
+              {resending ? 'Sending…' : 'Resend code'}
             </button>
           )}
         </div>
 
+        {/* Back link */}
         <div className="text-center">
           <button
             onClick={() => router.push('/login')}
-            className="text-sm text-gray-500 hover:text-gray-700"
+            style={{ fontSize: 12, color: 'var(--color-text-tertiary)', background: 'none', border: 'none', cursor: 'pointer' }}
+            className="hover:opacity-70 transition-opacity"
           >
             ← Use a different {contact.startsWith('+') ? 'number' : 'email'}
           </button>
         </div>
-
-      </CardContent>
-    </Card>
+      </div>
+    </AuthShell>
   )
 }
