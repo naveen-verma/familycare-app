@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard,
@@ -12,8 +12,10 @@ import {
   Clock,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   Stethoscope,
   Settings,
+  LogOut,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -42,6 +44,9 @@ export function Sidebar() {
   const [mounted, setMounted] = useState(false)
   const [counts, setCounts] = useState<Counts>({ members: 0, documents: 0, meds: 0 })
   const [profile, setProfile] = useState<Profile>({ initials: 'U', name: 'User' })
+  const [popoverOpen, setPopoverOpen] = useState(false)
+  const popoverRef = useRef<HTMLDivElement>(null)
+  const router = useRouter()
 
   // Restore collapse state from localStorage after mount
   useEffect(() => {
@@ -73,6 +78,24 @@ export function Sidebar() {
 
     load()
   }, [])
+
+  // Close popover on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setPopoverOpen(false)
+      }
+    }
+    if (popoverOpen) document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [popoverOpen])
+
+  async function handleLogout() {
+    setPopoverOpen(false)
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
 
   function toggle() {
     setCollapsed((prev) => {
@@ -202,54 +225,93 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* ── User profile row ──────────────────────────────────────── */}
-      <div
-        className="flex items-center shrink-0 overflow-hidden"
-        style={{
-          borderTop: '0.5px solid rgba(255,255,255,0.08)',
-          padding: '10px 14px',
-          gap: 8,
-        }}
-      >
-        {/* Avatar */}
-        <div
-          className="flex items-center justify-center shrink-0 rounded-full text-white font-semibold"
-          style={{ width: 26, height: 26, background: BRAND_AVATAR, fontSize: 9 }}
-        >
-          {profile.initials}
-        </div>
-        {/* Name + role */}
-        <div
-          className="flex-1 min-w-0 overflow-hidden"
-          style={{
-            opacity: isCollapsed ? 0 : 1,
-            transition: 'opacity 150ms ease',
-            pointerEvents: isCollapsed ? 'none' : 'auto',
-          }}
-        >
-          <p
-            className="text-white truncate font-medium"
-            style={{ fontSize: 10 }}
+      {/* ── User profile row + logout popover ────────────────────── */}
+      <div className="relative shrink-0" ref={popoverRef}>
+
+        {/* Popover menu — appears above the row */}
+        {popoverOpen && (
+          <div
+            className="absolute"
+            style={isCollapsed
+              ? { left: 52, bottom: 10, width: 160 }
+              : { bottom: '100%', left: 10, right: 10, marginBottom: 6 }
+            }
           >
-            {profile.name}
-          </p>
-          <p style={{ fontSize: 8, color: 'rgba(255,255,255,0.4)' }}>Admin</p>
-        </div>
-        {/* Settings icon */}
+            <div
+              style={{
+                background: 'white',
+                border: '0.5px solid #E5E7EB',
+                borderRadius: 8,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                padding: 4,
+              }}
+            >
+              <button
+                onClick={() => { setPopoverOpen(false); router.push('/settings') }}
+                className="flex items-center gap-2 w-full rounded-[6px] hover:bg-gray-50 transition-colors"
+                style={{ padding: '8px 10px', fontSize: 12, color: '#111827', cursor: 'pointer', background: 'none', border: 'none', textAlign: 'left' }}
+              >
+                <Settings size={15} color="#6B7280" />
+                Settings
+              </button>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 w-full rounded-[6px] hover:bg-red-50 transition-colors"
+                style={{ padding: '8px 10px', fontSize: 12, color: '#A32D2D', cursor: 'pointer', background: 'none', border: 'none', textAlign: 'left' }}
+              >
+                <LogOut size={15} color="#A32D2D" />
+                Log out
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Clickable user row */}
         <button
-          className="shrink-0 hover:opacity-60 transition-opacity"
-          title="Settings"
+          onClick={() => setPopoverOpen((p) => !p)}
+          className="flex items-center w-full overflow-hidden hover:opacity-80 transition-opacity"
           style={{
-            opacity: isCollapsed ? 0 : 0.3,
-            transition: 'opacity 150ms ease',
-            pointerEvents: isCollapsed ? 'none' : 'auto',
+            borderTop: '0.5px solid rgba(255,255,255,0.08)',
+            padding: '10px 14px',
+            gap: 8,
             background: 'none',
-            border: 'none',
-            padding: 0,
             cursor: 'pointer',
           }}
         >
-          <Settings size={13} color="white" />
+          {/* Avatar */}
+          <div
+            className="flex items-center justify-center shrink-0 rounded-full text-white font-semibold"
+            style={{ width: 26, height: 26, background: BRAND_AVATAR, fontSize: 9 }}
+          >
+            {profile.initials}
+          </div>
+
+          {/* Name + role */}
+          <div
+            className="flex-1 min-w-0 overflow-hidden text-left"
+            style={{
+              opacity: isCollapsed ? 0 : 1,
+              transition: 'opacity 150ms ease',
+              pointerEvents: isCollapsed ? 'none' : 'auto',
+            }}
+          >
+            <p className="text-white truncate font-medium" style={{ fontSize: 10 }}>
+              {profile.name}
+            </p>
+            <p style={{ fontSize: 8, color: 'rgba(255,255,255,0.4)' }}>Admin</p>
+          </div>
+
+          {/* Chevron hint — hidden when collapsed */}
+          <div
+            style={{
+              opacity: isCollapsed ? 0 : 0.3,
+              transition: 'opacity 150ms ease, transform 150ms ease',
+              transform: popoverOpen ? 'rotate(0deg)' : 'rotate(180deg)',
+              pointerEvents: 'none',
+            }}
+          >
+            <ChevronUp size={11} color="white" />
+          </div>
         </button>
       </div>
 
