@@ -36,6 +36,12 @@ import { useDocumentExtraction } from '@/hooks/useDocumentExtraction'
 import type { FamilyMemberSummary } from '@/components/dashboard/QuickActionsBar'
 import type { ConsultationType, DocumentType } from '@/types/database'
 import { saveHealthEventAction } from '@/app/(dashboard)/visits/actions'
+import {
+  validateName,
+  validateMedicationName,
+  validateDosage,
+  validateDocumentTitle,
+} from '@/lib/validation/inputs'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -204,6 +210,12 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
+  // Validation error states
+  const [newConditionNameError, setNewConditionNameError] = useState<string | null>(null)
+  const [docCardErrors, setDocCardErrors] = useState<Array<{ title?: string }>>([])
+  const [medErrors, setMedErrors] = useState<Record<string, { name?: string; dosage?: string }>>({})
+  const [visitDoctorError, setVisitDoctorError] = useState<string | null>(null)
+
   const { extractFromFiles } = useDocumentExtraction()
 
   // Fetch ICD-10 on mount
@@ -244,6 +256,10 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
     setMeds([])
     setIsSaving(false)
     setSaveError(null)
+    setNewConditionNameError(null)
+    setDocCardErrors([])
+    setMedErrors({})
+    setVisitDoctorError(null)
   }
 
   function handleOpenChange(v: boolean) {
@@ -281,7 +297,7 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
   // ── Step 1 validation ──────────────────────────────────────────────────────
   const step1Valid =
     !!selectedMemberId &&
-    (!!selectedConditionId || (isNewCondition && newConditionName.trim().length > 0))
+    (!!selectedConditionId || (isNewCondition && validateName(newConditionName, 'Condition', true) === null))
 
   // ── File + card management ─────────────────────────────────────────────────
   function makeBlankCard(file: File): DocumentCard {
@@ -309,11 +325,13 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
     const newCards = [...documentCards, ...toAdd.map(makeBlankCard)].slice(0, MAX_FILES)
     setUploadedFiles(newFiles)
     setDocumentCards(newCards)
+    setDocCardErrors((prev) => [...prev, ...toAdd.map(() => ({}) as { title?: string })].slice(0, MAX_FILES))
   }
 
   function removeFile(index: number) {
     setUploadedFiles((prev) => prev.filter((_, i) => i !== index))
     setDocumentCards((prev) => prev.filter((_, i) => i !== index))
+    setDocCardErrors((prev) => prev.filter((_, i) => i !== index))
     setExtractionDone(false)
     setExtractionFileCount(null)
     setExtractionMedCount(null)
@@ -415,6 +433,7 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
 
   function removeMed(id: string) {
     setMeds((prev) => prev.filter((m) => m.id !== id))
+    setMedErrors((prev) => { const n = { ...prev }; delete n[id]; return n })
   }
 
   function updateMed<K extends keyof MedEntry>(id: string, key: K, value: MedEntry[K]) {
@@ -508,9 +527,17 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
 
   // ── Derived ────────────────────────────────────────────────────────────────
   const selectedMember = familyMembers.find((m) => m.id === selectedMemberId)
-  const step3HasEmptyDocTitle = documentCards.some((c) => !c.title.trim())
-  const step3HasEmptyMedName  = meds.some((m) => !m.name.trim())
-  const step3Blocked = step3HasEmptyDocTitle || step3HasEmptyMedName
+  const step3HasDocErrors =
+    documentCards.some((c) => validateDocumentTitle(c.title) !== null) ||
+    docCardErrors.some((e) => !!e.title)
+  const step3HasMedErrors =
+    meds.some((m) => validateMedicationName(m.name) !== null) ||
+    Object.values(medErrors).some((e) => !!e.name || !!e.dosage)
+  const step3NotesOverLimit =
+    visitDetails.notes.length > 500 ||
+    documentCards.some((c) => c.notes.length > 500) ||
+    meds.some((m) => m.notes.length > 500)
+  const step3Blocked = step3HasDocErrors || step3HasMedErrors || step3NotesOverLimit || !!visitDoctorError
 
   // Step 4 warnings
   const medIncomplete = meds
@@ -612,9 +639,9 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
                         <PopoverPrimitive.Anchor asChild>
                           <div className="relative">
                             <Input autoFocus value={newConditionName}
-                              onChange={(e) => { setNewConditionName(e.target.value); setNewConditionIcd10Id(null); setComboboxOpen(true) }}
+                              onChange={(e) => { setNewConditionName(e.target.value); setNewConditionIcd10Id(null); setComboboxOpen(true); if (newConditionNameError) setNewConditionNameError(null) }}
                               onFocus={() => setComboboxOpen(true)}
-                              onBlur={() => setTimeout(() => setComboboxOpen(false), 200)}
+                              onBlur={() => { setTimeout(() => setComboboxOpen(false), 200); setNewConditionNameError(validateName(newConditionName, 'Condition', true)) }}
                               placeholder="e.g. Diabetes Type 2"
                               className={newConditionIcd10Id ? 'border-teal-400 pr-8' : ''}
                             />
@@ -657,6 +684,9 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
                           </PopoverPrimitive.Content>
                         </PopoverPrimitive.Portal>
                       </PopoverPrimitive.Root>
+                      {newConditionNameError && !newConditionIcd10Id && (
+                        <p className="text-red-500 text-xs mt-1">{newConditionNameError}</p>
+                      )}
                       <p className="text-xs text-muted-foreground">
                         {newConditionIcd10Id ? 'ICD-10 condition selected' : 'Search ICD-10 list or type a custom condition name'}
                       </p>
@@ -751,8 +781,10 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
                 <div className="space-y-1.5">
                   <Label htmlFor="doctor_name">Doctor Name</Label>
                   <Input id="doctor_name" value={visitDetails.doctor_name}
-                    onChange={(e) => updateVisit('doctor_name', e.target.value)}
+                    onChange={(e) => { updateVisit('doctor_name', e.target.value); if (visitDoctorError) setVisitDoctorError(null) }}
+                    onBlur={() => setVisitDoctorError(validateName(visitDetails.doctor_name, 'Doctor name', false))}
                     placeholder="e.g. Dr. Anjali Sharma" />
+                  {visitDoctorError && <p className="text-red-500 text-xs mt-1">{visitDoctorError}</p>}
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
@@ -771,10 +803,14 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="notes">Notes</Label>
-                  <Textarea id="notes" value={visitDetails.notes}
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="visit_notes">Notes</Label>
+                    <span className={`text-xs ${visitDetails.notes.length > 500 ? 'text-red-500' : 'text-gray-400'}`}>{visitDetails.notes.length} / 500</span>
+                  </div>
+                  <Textarea id="visit_notes" value={visitDetails.notes}
                     onChange={(e) => updateVisit('notes', e.target.value)}
                     placeholder="Any notes about the visit…" rows={2} className="resize-none" />
+                  {visitDetails.notes.length > 500 && <p className="text-red-500 text-xs mt-1">Notes must be under 500 characters</p>}
                 </div>
               </div>
 
@@ -793,9 +829,11 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
                             <div className="space-y-1">
                               <Label className="text-xs">Document title <span className="text-destructive">*</span></Label>
                               <Input value={card.title}
-                                onChange={(e) => updateDocCard(idx, 'title', e.target.value)}
+                                onChange={(e) => { updateDocCard(idx, 'title', e.target.value); setDocCardErrors((prev) => { const n = [...prev]; if (n[idx]) n[idx] = { ...n[idx], title: undefined }; return n }) }}
+                                onBlur={() => setDocCardErrors((prev) => { const n = [...prev]; n[idx] = { ...(n[idx] ?? {}), title: validateDocumentTitle(card.title) ?? undefined }; return n })}
                                 placeholder="e.g. Blood test report"
-                                className={!card.title.trim() ? 'border-destructive' : ''} />
+                                className={validateDocumentTitle(card.title) ? 'border-destructive' : ''} />
+                              {docCardErrors[idx]?.title && <p className="text-red-500 text-xs mt-1">{docCardErrors[idx].title}</p>}
                             </div>
 
                             <div className="grid grid-cols-2 gap-2">
@@ -831,10 +869,14 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
                             </div>
 
                             <div className="space-y-1">
-                              <Label className="text-xs">Notes</Label>
+                              <div className="flex items-center justify-between">
+                                <Label className="text-xs">Notes</Label>
+                                <span className={`text-xs ${card.notes.length > 500 ? 'text-red-500' : 'text-gray-400'}`}>{card.notes.length} / 500</span>
+                              </div>
                               <Input value={card.notes}
                                 onChange={(e) => updateDocCard(idx, 'notes', e.target.value)}
                                 placeholder="Any additional notes" />
+                              {card.notes.length > 500 && <p className="text-red-500 text-xs mt-1">Notes must be under 500 characters</p>}
                             </div>
                           </div>
                         )
@@ -861,15 +903,22 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
                   <div key={med.id} className="rounded-xl border p-4 space-y-3">
                     <div className="space-y-1">
                       <Label className="text-xs">Medication name <span className="text-destructive">*</span></Label>
-                      <Input value={med.name} onChange={(e) => updateMed(med.id, 'name', e.target.value)}
+                      <Input value={med.name}
+                        onChange={(e) => { updateMed(med.id, 'name', e.target.value); setMedErrors((p) => ({ ...p, [med.id]: { ...p[med.id], name: undefined } })) }}
+                        onBlur={() => setMedErrors((p) => ({ ...p, [med.id]: { ...p[med.id], name: validateMedicationName(med.name) ?? undefined } }))}
                         placeholder="e.g. Metformin"
-                        className={!med.name.trim() ? 'border-destructive' : ''} />
+                        className={validateMedicationName(med.name) !== null ? 'border-destructive' : ''} />
+                      {medErrors[med.id]?.name && <p className="text-red-500 text-xs mt-1">{medErrors[med.id].name}</p>}
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-1">
                         <Label className="text-xs">Dose</Label>
-                        <Input value={med.dosage} onChange={(e) => updateMed(med.id, 'dosage', e.target.value)} placeholder="e.g. 500mg" />
+                        <Input value={med.dosage}
+                          onChange={(e) => { updateMed(med.id, 'dosage', e.target.value); setMedErrors((p) => ({ ...p, [med.id]: { ...p[med.id], dosage: undefined } })) }}
+                          onBlur={() => setMedErrors((p) => ({ ...p, [med.id]: { ...p[med.id], dosage: validateDosage(med.dosage) ?? undefined } }))}
+                          placeholder="e.g. 500mg" />
+                        {medErrors[med.id]?.dosage && <p className="text-red-500 text-xs mt-1">{medErrors[med.id].dosage}</p>}
                       </div>
                       <div className="space-y-1">
                         <Label className="text-xs">Frequency</Label>
@@ -914,8 +963,12 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
                     </div>
 
                     <div className="space-y-1">
-                      <Label className="text-xs">Notes</Label>
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs">Notes</Label>
+                        <span className={`text-xs ${med.notes.length > 500 ? 'text-red-500' : 'text-gray-400'}`}>{med.notes.length} / 500</span>
+                      </div>
                       <Input value={med.notes} onChange={(e) => updateMed(med.id, 'notes', e.target.value)} placeholder="e.g. After food, before sleep" />
+                      {med.notes.length > 500 && <p className="text-red-500 text-xs mt-1">Notes must be under 500 characters</p>}
                     </div>
 
                     {med.frequency !== 'as needed' && (
@@ -1091,7 +1144,11 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
             <div className="space-y-2">
               {step3Blocked && (
                 <p className="text-xs text-center text-amber-600">
-                  {step3HasEmptyDocTitle ? 'Please enter a title for all documents' : 'Please enter a name for all medications'}
+                  {step3HasDocErrors ? 'Please enter a valid title for all documents'
+                    : step3HasMedErrors ? 'Please enter a valid name for all medications'
+                    : step3NotesOverLimit ? 'Notes must be under 500 characters'
+                    : visitDoctorError ? 'Please fix the doctor name'
+                    : ''}
                 </p>
               )}
               <Button className="w-full bg-teal-600 hover:bg-teal-700" disabled={step3Blocked} onClick={() => setStep(4)}>

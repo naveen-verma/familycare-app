@@ -27,6 +27,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { PlusIcon, SearchIcon, XIcon } from 'lucide-react'
 import { addConditionAction } from '@/app/(dashboard)/members/[id]/actions'
 import { createClient } from '@/lib/supabase/client'
+import { validateName } from '@/lib/validation/inputs'
 import type { ICD10Condition } from '@/types/database'
 
 const CONSULTATION_TYPES = [
@@ -42,8 +43,14 @@ const CONSULTATION_TYPES = [
 const schema = z.object({
   status: z.string().min(1, 'Please select a status'),
   diagnosed_on: z.string().optional(),
-  diagnosed_by: z.string().optional(),
-  notes: z.string().optional(),
+  diagnosed_by: z.string().optional().refine(
+    (v) => !v || validateName(v, 'Doctor name', false) === null,
+    { message: 'Doctor name must contain at least one letter and be under 100 characters' }
+  ),
+  notes: z.string().optional().refine(
+    (v) => !v || v.trim().length <= 500,
+    { message: 'Notes must be under 500 characters' }
+  ),
 })
 
 type FormData = z.infer<typeof schema>
@@ -65,6 +72,7 @@ export function AddConditionDialog({
 
   const [loading, setLoading] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [customNameError, setCustomNameError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [selectedCondition, setSelectedCondition] = useState<ICD10Condition | null>(null)
   const [customName, setCustomName] = useState('')
@@ -107,11 +115,14 @@ export function AddConditionDialog({
     handleSubmit,
     setValue,
     reset,
+    watch,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { status: 'active' },
   })
+
+  const notesValue = watch('notes') ?? ''
 
   async function onSubmit(data: FormData) {
     if (!selectedCondition && !customName.trim() && !search.trim()) {
@@ -147,6 +158,7 @@ export function AddConditionDialog({
     setCustomName('')
     setConsultationType('visit')
     setFormError(null)
+    setCustomNameError(null)
   }
 
   function setOpenState(v: boolean) {
@@ -247,8 +259,13 @@ export function AddConditionDialog({
                     <Input
                       placeholder="Custom condition name"
                       value={customName || search}
-                      onChange={(e) => setCustomName(e.target.value)}
+                      onChange={(e) => { setCustomName(e.target.value); if (customNameError) setCustomNameError(null) }}
+                      onBlur={() => {
+                        const val = customName || search
+                        setCustomNameError(validateName(val, 'Condition name', true))
+                      }}
                     />
+                    {customNameError && <p className="text-red-500 text-xs mt-1">{customNameError}</p>}
                   </div>
                 )}
               </div>
@@ -305,13 +322,17 @@ export function AddConditionDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="notes">Notes</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="notes">Notes</Label>
+              <span className={`text-xs ${notesValue.length > 500 ? 'text-red-500' : 'text-gray-400'}`}>{notesValue.length} / 500</span>
+            </div>
             <Textarea
               id="notes"
               {...register('notes')}
               placeholder="Any additional notes..."
               rows={2}
             />
+            {errors.notes && <p className="text-red-500 text-xs mt-1">{errors.notes.message}</p>}
           </div>
 
           {formError && <p className="text-xs text-destructive">{formError}</p>}
