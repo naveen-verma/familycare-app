@@ -440,13 +440,13 @@ release: v1.5.11 — health event logger sheet fixed height
 
 ## Current Development Status
 
-### Current Version: v1.6.0 Phase 1.5 Closed Out — UI Design System Complete
+### Current Version: v1.6.0
 
 ### Phase 1 — Complete ✅
 Core app live on Vercel production and custom domain.
 Week 14 internal testing complete.
 
-### Phase 1.5 — Complete ✅
+### Phase 1.5 — Closed Out ✅ UI Design System Complete
 Internal testing fixes implemented and shipped.
 
 **v1.5.5** — Profile pictures with crop tool
@@ -481,41 +481,6 @@ Internal testing fixes implemented and shipped.
 - Header (flex-shrink-0) and footer/Next button (flex-shrink-0) always visible
 - Sheet height identical regardless of data volume or step number
 
-## Phase 1.5 UI Design System — Complete ✅
-
-Design system established and applied across entire app:
-
-Three shell components built:
-  PageShell — all authenticated pages
-  AuthShell — login, verify, onboarding
-  PublicShell — share page, T&C, privacy
-
-Command Center dashboard:
-  Dark collapsible sidebar (#085041)
-  Teal primary (#0F6E56) throughout
-  Today's snapshot replacing stat row
-  Smart reminder strip grouped by member + sorted by time
-  Member panel with phase-ready health panel slots
-  Quick actions grid with More overflow
-
-Pages restyled (Sprint 1–3):
-  Family, Member Profile, Documents, Document detail
-  Medications, Medication detail, Timeline
-  Login, Verify, Onboarding Step 1 and Step 2
-  Log Visit 4-step sheet (all steps)
-  Add Member, Add Condition, Add Medication sheets
-  Share with Doctor public page
-  Terms, Privacy, Disclaimer static pages
-
-Design tokens:
-  Primary: #0F6E56
-  Primary light: #E1F5EE
-  Amber: #854F0B
-  Sheet height: 85vh fixed (established v1.5.11)
-  Card border: 0.5px solid var(--color-border-tertiary)
-  Card radius: var(--border-radius-lg)
-  Section labels: 9px uppercase letter-spaced muted
-
 ### Previously Completed (Phase 1) ✅
 - Dev/staging/prod environment setup
 - 13 database migrations with full RLS
@@ -538,12 +503,73 @@ Design tokens:
 - Member profile UI polish (v1.4.7)
 - Horizontal timeline redesign (v1.5.4)
 
+### Phase 1.5 UI Design System — Complete ✅
+
+Three shell components built and applied across entire app:
+  PageShell    — all authenticated dashboard pages
+  AuthShell    — login, verify, onboarding
+  PublicShell  — share with doctor, T&C, privacy
+
+Command Center dashboard:
+  Dark collapsible sidebar — background #085041
+  Expanded: 164px with icon + label + count badges
+  Collapsed: 52px icon-only with tooltips
+  State persisted in localStorage
+  Logout popover on user profile row
+
+Dashboard zones:
+  Top bar — greeting + Log Visit button + amber sparkle
+  Today's snapshot — reminders count, last visit, conditions
+  Smart reminder strip — grouped by member, sorted by time
+  Quick actions grid — 4 primary + More overflow
+  Member panel — scrollable tabs, stats, health panel slots
+  Health panel — phase-ready slots for Phase 2-4 features
+
+Pages restyled — Sprint 1:
+  Family / Members list page
+  Login page
+  OTP Verify page
+  Onboarding Step 1 (personal details)
+  Onboarding Step 2 (health details)
+
+Pages restyled — Sprint 2:
+  Member Profile page
+  Documents page
+  Document detail page
+  Medications page
+  Medication detail page
+  Timeline page
+
+Pages restyled — Sprint 3:
+  Log Visit sheet — all 4 steps
+  Add Member sheet
+  Add Condition sheet
+  Add Medication sheet
+  Share with Doctor public page
+  Terms, Privacy, Disclaimer static pages
+
+Design tokens — established as system-wide standard:
+  Primary:        #0F6E56
+  Primary light:  #E1F5EE
+  Primary mid:    #1D9E75
+  Sidebar bg:     #085041
+  Amber:          #854F0B
+  Amber light:    #FAEEDA
+  Sheet height:   85vh fixed (never change)
+  Card border:    0.5px solid var(--color-border-tertiary)
+  Card radius:    var(--border-radius-lg)
+  Section labels: 9px uppercase letter-spaced muted
+  Primary button: bg #0F6E56 rounded-full px-4 py-2
+
 ### Pending ⏳
-1. WF7 — replace MSG91 placeholder node with HTTP Request using familycare_share_link template
-2. WhatsApp reminder notes — verify live notification shows dosage + notes correctly
+1. WF7 — replace MSG91 placeholder node with HTTP Request
+   using familycare_share_link template
+2. WhatsApp reminder notes — verify live notification
+   shows dosage + notes correctly when next reminder fires
 3. Terms & Conditions — add 18+ age requirement clause
+   (content update, no code change)
 4. Production n8n — verify all 5 workflows healthy
-5. Phase 2 scoping — Second Opinion Engine
+5. Phase 2 — Second Opinion Engine (scoping in progress)
 
 ---
 
@@ -567,6 +593,44 @@ Design tokens:
 - Header inside sheets: flex-shrink-0 — never moves
 - Footer/action buttons inside sheets: flex-shrink-0 bg-white — always at bottom
 - Sheet height must be identical across all steps and all data volumes
+
+### Shell Components
+- PageShell: wraps all authenticated pages
+  Props: title, subtitle?, action?, backHref?, noPadding?
+  Location: src/components/layout/PageShell.tsx
+- AuthShell: wraps login, verify, onboarding
+  Props: title, subtitle?, step?, totalSteps?, showLogo?
+  Location: src/components/layout/AuthShell.tsx
+- PublicShell: wraps public pages (share, T&C, privacy)
+  Props: children, showBranding?, maxWidth?
+  Location: src/components/layout/PublicShell.tsx
+
+### Sidebar
+- Location: src/components/layout/Sidebar.tsx
+- Expanded: 164px, icon + label + count badges
+- Collapsed: 52px, icon only + tooltips
+- Toggle: chevron button on right edge
+- State: localStorage key 'fc_sidebar_collapsed'
+- User profile row: click → logout popover above row
+
+### Log Visit FAB
+- Location: src/components/dashboard/DoctorVisitFAB.tsx
+- Position: fixed bottom-20 right-6 z-50 (mobile only)
+- Hidden on desktop: md:hidden
+- Desktop entry: Log Visit button in dashboard top bar
+- Sparkle: amber #EF9F27 on teal background
+
+### Quick Actions
+- 4 primary actions always visible in 2x2 grid
+- 5th slot: More button toggles expanded list inline
+- No horizontal scroll — grid only
+
+### Reminder Strip
+- Only visible when reminders due today
+- Default: first 2 reminders shown, collapsed
+- Expanded: all reminders grouped by member,
+  sorted by time ascending within each group
+- Member group header: avatar + name + count badge
 
 ### General UI Rules
 - Mobile-first: all primary actions reachable with one thumb
