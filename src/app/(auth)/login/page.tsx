@@ -4,6 +4,7 @@ import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { signInWithGoogle } from '@/lib/auth'
+import { validateEmail, validateIndianMobile } from '@/lib/validation/inputs'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -49,6 +50,7 @@ function LoginForm() {
   const [error, setError] = useState(
     oauthError ? 'Google sign-in failed. Please try again.' : ''
   )
+  const [fieldError, setFieldError] = useState('')
 
   const formatMobile = (val: string) => val.replace(/\D/g, '').slice(0, 10)
 
@@ -68,15 +70,14 @@ function LoginForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setFieldError('')
 
-    if (USE_PHONE_AUTH && value.length !== 10) {
-      setError('Please enter a valid 10-digit mobile number')
-      return
-    }
-
-    if (!USE_PHONE_AUTH && !value.includes('@')) {
-      setError('Please enter a valid email address')
-      return
+    if (USE_PHONE_AUTH) {
+      const mErr = validateIndianMobile(value, true) ?? ''
+      if (mErr) { setFieldError(mErr); return }
+    } else {
+      const eErr = validateEmail(value, true) ?? ''
+      if (eErr) { setFieldError(eErr); return }
     }
 
     setLoading(true)
@@ -171,9 +172,10 @@ function LoginForm() {
                 <Input
                   id="value"
                   type="tel"
-                  placeholder="98765 43210"
+                  placeholder="10-digit mobile number"
                   value={value}
-                  onChange={(e) => setValue(formatMobile(e.target.value))}
+                  onChange={(e) => { setValue(formatMobile(e.target.value)); if (fieldError) setFieldError('') }}
+                  onBlur={() => setFieldError(validateIndianMobile(value, false) ?? '')}
                   className="flex-1 text-lg tracking-widest"
                   maxLength={10}
                   disabled={googleLoading}
@@ -185,10 +187,12 @@ function LoginForm() {
                 type="email"
                 placeholder="you@example.com"
                 value={value}
-                onChange={(e) => setValue(e.target.value)}
+                onChange={(e) => { setValue(e.target.value); if (fieldError) setFieldError('') }}
+                onBlur={() => setFieldError(validateEmail(value, false) ?? '')}
                 disabled={googleLoading}
               />
             )}
+            {fieldError && <p className="text-red-500 text-xs mt-1">{fieldError}</p>}
           </div>
 
           {process.env.NODE_ENV === 'development' && (
