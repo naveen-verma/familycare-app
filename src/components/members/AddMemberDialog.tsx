@@ -322,13 +322,21 @@ export function AddMemberDialog({
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="mobile">Mobile Number</Label>
-                <Input
-                  id="mobile"
-                  type="tel"
-                  {...register('mobile')}
-                  placeholder="10-digit mobile number"
-                />
+                <Label htmlFor="mobile">Mobile Number <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
+                <div className="flex items-center rounded-lg overflow-hidden"
+                  style={{ border: '0.5px solid var(--color-border-tertiary)' }}>
+                  <span className="shrink-0 px-3 text-sm"
+                    style={{ color: 'var(--color-text-secondary)', borderRight: '0.5px solid var(--color-border-tertiary)', paddingBlock: 9 }}>
+                    🇮🇳 +91
+                  </span>
+                  <input
+                    id="mobile"
+                    type="tel"
+                    {...register('mobile')}
+                    placeholder="10-digit number"
+                    style={{ flex: 1, padding: '9px 12px', fontSize: 13, outline: 'none', background: 'transparent', border: 'none', color: 'var(--color-text-primary)' }}
+                  />
+                </div>
                 {errors.mobile && (
                   <p className="text-xs text-destructive">{errors.mobile.message}</p>
                 )}
@@ -396,7 +404,8 @@ export function AddMemberDialog({
 
           <DialogFooter className="flex-col gap-2 sm:flex-row">
             {step === 1 ? (
-              <Button type="button" onClick={handleNext} className="w-full">
+              <Button type="button" onClick={handleNext} className="w-full rounded-full"
+                style={{ background: '#0F6E56' }}>
                 Next
                 <ChevronRight className="size-4 ml-1" />
               </Button>
@@ -409,7 +418,8 @@ export function AddMemberDialog({
                 >
                   Skip for now →
                 </button>
-                <Button type="submit" disabled={loading} className="w-full sm:w-auto">
+                <Button type="submit" disabled={loading} className="w-full sm:w-auto rounded-full"
+                  style={{ background: '#0F6E56' }}>
                   {loading ? 'Adding...' : 'Add Member'}
                 </Button>
               </>

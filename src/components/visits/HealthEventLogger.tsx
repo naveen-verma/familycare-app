@@ -149,14 +149,15 @@ type VisitDetails = {
   notes: string
 }
 
-// ─── Progress dots ────────────────────────────────────────────────────────────
+// ─── Progress bar ─────────────────────────────────────────────────────────────
 
-function ProgressDots({ current, total }: { current: number; total: number }) {
+function ProgressBar({ step }: { step: number }) {
+  const pct = step === 1 ? 25 : step === 2 ? 50 : step === 3 ? 75 : 100
   return (
-    <div className="flex gap-1.5 mt-3">
-      {Array.from({ length: total }).map((_, i) => (
-        <div key={i} className={`h-1.5 flex-1 rounded-full transition-colors ${i < current ? 'bg-teal-500' : 'bg-muted'}`} />
-      ))}
+    <div className="w-full mt-3" style={{ height: 3, background: 'var(--color-border-tertiary)' }}>
+      <div className="h-full transition-all duration-300"
+        style={{ width: `${pct}%`, background: '#0F6E56' }}
+      />
     </div>
   )
 }
@@ -557,24 +558,26 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
       >
 
         {/* ── Zone 1: Fixed header ──────────────────────────────────────── */}
-        <div className="flex-shrink-0 px-6 pt-5 pb-4 border-b border-gray-100">
+        <div className="flex-shrink-0 px-6 pt-5 pb-4"
+          style={{ borderBottom: '0.5px solid var(--color-border-tertiary)' }}>
           <div className="flex items-center gap-2">
             {step > 1 && (
               <button onClick={() => setStep(step - 1)} className="p-1 -ml-1 rounded-lg hover:bg-gray-100 shrink-0" aria-label="Back">
                 <ArrowLeft className="size-4" />
               </button>
             )}
-            <h2 className="text-base font-semibold flex-1 leading-tight">
+            <h2 className="font-medium flex-1 leading-tight"
+              style={{ fontSize: 14, color: 'var(--color-text-primary)' }}>
               {step === 1 && 'Log a visit'}
               {step === 2 && 'Upload documents'}
               {step === 3 && 'Visit details'}
-              {step === 4 && 'Ready to save'}
+              {step === 4 && 'Review visit'}
             </h2>
             <button onClick={() => handleOpenChange(false)} className="p-1 rounded-lg hover:bg-gray-100 shrink-0" aria-label="Close">
               <X className="size-4" />
             </button>
           </div>
-          <ProgressDots current={step} total={4} />
+          <ProgressBar step={step} />
         </div>
 
         {/* ── Zone 2: Scrollable content ────────────────────────────────── */}
@@ -591,11 +594,17 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
                     const color = AVATAR_COLORS[m.relation ?? 'other'] ?? AVATAR_COLORS.other
                     return (
                       <button key={m.id} onClick={() => { setSelectedMemberId(m.id); loadConditions(m.id) }}
-                        className={`flex-shrink-0 flex flex-col items-center gap-1.5 rounded-xl border px-3 py-2.5 transition-colors ${selected ? 'border-teal-500 bg-teal-50' : 'border-border bg-white hover:bg-muted/30'}`}>
+                        className="flex-shrink-0 flex flex-col items-center gap-1.5 rounded-[10px] px-3 py-2.5 transition-colors"
+                        style={selected
+                          ? { outline: '2px solid #0F6E56', background: 'white' }
+                          : { border: '0.5px solid var(--color-border-tertiary)', background: 'white' }}>
                         <div className={`size-9 rounded-full flex items-center justify-center font-semibold text-xs ${selected ? 'bg-teal-500 text-white' : color}`}>
                           {getInitials(m.full_name)}
                         </div>
-                        <span className="text-xs font-medium">{getFirstName(m.full_name)}</span>
+                        <span className="text-xs font-medium"
+                          style={{ color: selected ? '#0F6E56' : 'var(--color-text-secondary)' }}>
+                          {getFirstName(m.full_name)}
+                        </span>
                       </button>
                     )
                   })}
@@ -615,9 +624,18 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
                     return (
                       <button key={cond.id}
                         onClick={() => { setSelectedConditionId(cond.id); setIsNewCondition(false); setNewConditionName('') }}
-                        className={`w-full flex items-center gap-3 rounded-xl border p-3 text-left transition-colors ${selected ? 'border-teal-500 bg-teal-50' : 'border-border hover:bg-muted/20'}`}>
+                        className="w-full flex items-center gap-3 rounded-[20px] text-left transition-colors"
+                        style={{
+                          padding: '5px 12px',
+                          ...(selected
+                            ? { background: '#E1F5EE', border: '0.5px solid #0F6E56' }
+                            : { background: 'var(--color-background-secondary)', border: '0.5px solid var(--color-border-tertiary)' })
+                        }}>
                         <span className={`size-2 rounded-full shrink-0 ${cfg.dot}`} />
-                        <span className="flex-1 text-sm font-medium min-w-0 truncate">{cond.name}</span>
+                        <span className="flex-1 text-sm font-medium min-w-0 truncate"
+                          style={{ color: cond.id === selectedConditionId ? '#0F6E56' : 'var(--color-text-primary)' }}>
+                          {cond.name}
+                        </span>
                         <span className={`text-xs font-medium border rounded-full px-2 py-0.5 shrink-0 ${cfg.badge}`}>{cfg.label}</span>
                       </button>
                     )
@@ -701,7 +719,8 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
           {step === 2 && (
             <>
               {uploadedFiles.length < MAX_FILES && (
-                <label className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-muted-foreground/30 py-6 cursor-pointer hover:border-teal-400 hover:bg-teal-50/30 transition-colors">
+                <label className="flex flex-col items-center justify-center gap-2 rounded-xl py-6 cursor-pointer transition-colors hover:opacity-80"
+                  style={{ border: '0.5px dashed var(--color-border-secondary)', background: 'var(--color-background-secondary)' }}>
                   <Upload className="size-6 text-muted-foreground" />
                   <p className="text-sm font-medium">Tap to upload</p>
                   <p className="text-xs text-muted-foreground">JPG, PNG, PDF — multiple files supported</p>
@@ -733,7 +752,8 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
               {uploadedFiles.length > 0 && !extractionDone && (
                 <>
                   <button type="button" onClick={runExtraction} disabled={isExtractingAll}
-                    className="flex items-start gap-3 rounded-xl border border-teal-400 bg-teal-50 px-4 py-3 text-left w-full hover:bg-teal-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
+                    className="flex items-start gap-3 rounded-xl px-4 py-3 text-left w-full transition-colors disabled:opacity-60 disabled:cursor-not-allowed hover:opacity-80"
+                    style={{ border: '0.5px solid #0F6E56', background: '#E1F5EE' }}>
                     {isExtractingAll ? <Loader2 className="size-4 text-teal-600 shrink-0 mt-0.5 animate-spin" /> : <Sparkles className="size-4 text-teal-600 shrink-0 mt-0.5" />}
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-teal-800">
@@ -777,6 +797,10 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
           {step === 3 && (
             <>
               {/* ── Visit details ── */}
+              <p className="uppercase font-medium tracking-[0.07em]"
+                style={{ fontSize: 9, color: 'var(--color-text-tertiary)', marginBottom: 8 }}>
+                Visit Details
+              </p>
               <div className="space-y-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="doctor_name">Doctor Name</Label>
@@ -818,13 +842,17 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
               {uploadedFiles.length > 0 && (
                 <>
                   <div className="border-t pt-4">
-                    <p className="text-sm font-semibold mb-3">📄 Documents to save</p>
+                    <p className="uppercase font-medium tracking-[0.07em] mb-3"
+                      style={{ fontSize: 9, color: 'var(--color-text-tertiary)' }}>
+                      Documents to save
+                    </p>
                     <div className="space-y-4">
                       {uploadedFiles.map((file, idx) => {
                         const card = documentCards[idx] ?? makeBlankCard(file)
                         return (
-                          <div key={idx} className="rounded-xl border p-4 space-y-3">
-                            <p className="text-xs text-muted-foreground truncate">{file.name}</p>
+                          <div key={idx} className="rounded-[10px] p-4 space-y-3 mb-2"
+                            style={{ background: 'var(--color-background-secondary)', border: '0.5px solid var(--color-border-tertiary)' }}>
+                            <p className="truncate" style={{ fontSize: 10, color: 'var(--color-text-tertiary)' }}>{file.name}</p>
 
                             <div className="space-y-1">
                               <Label className="text-xs">Document title <span className="text-destructive">*</span></Label>
@@ -888,9 +916,10 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
 
               {/* ── Medications section ── */}
               <div className="border-t pt-4 space-y-4">
-                {meds.length > 0 && (
-                  <p className="text-sm font-semibold">💊 Medications from this visit</p>
-                )}
+                <p className="uppercase font-medium tracking-[0.07em]"
+                  style={{ fontSize: 9, color: 'var(--color-text-tertiary)' }}>
+                  Medications from this visit
+                </p>
 
                 {meds.length === 0 && (
                   <div className="rounded-xl border border-dashed px-4 py-6 text-center">
@@ -900,7 +929,12 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
                 )}
 
                 {meds.map((med) => (
-                  <div key={med.id} className="rounded-xl border p-4 space-y-3">
+                  <div key={med.id} className="rounded-[10px] p-4 space-y-3"
+                    style={{
+                      background: 'var(--color-background-secondary)',
+                      border: '0.5px solid var(--color-border-tertiary)',
+                      borderLeft: '2px solid #E1F5EE',
+                    }}>
                     <div className="space-y-1">
                       <Label className="text-xs">Medication name <span className="text-destructive">*</span></Label>
                       <Input value={med.name}
@@ -938,7 +972,13 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
                           {med.time_of_day.map((t, ti) => (
                             <input key={ti} type="time" value={t}
                               onChange={(e) => updateMedTime(med.id, ti, e.target.value)}
-                              className="px-2.5 py-1 rounded-full border text-xs font-medium bg-muted/40 focus:outline-none focus:ring-1 focus:ring-teal-400" />
+                              className="focus:outline-none"
+                              style={{
+                                padding: '3px 10px', borderRadius: 20,
+                                fontSize: 11, fontWeight: 500,
+                                background: '#E1F5EE', color: '#0F6E56',
+                                border: 'none',
+                              }} />
                           ))}
                         </div>
                       </div>
@@ -994,7 +1034,12 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
                 ))}
 
                 <button type="button" onClick={addMed}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-dashed py-3 text-sm font-medium text-teal-600 hover:border-teal-400 hover:bg-teal-50/30 transition-colors">
+                  className="w-full flex items-center justify-center gap-2 rounded-xl py-3 font-medium transition-colors hover:opacity-80"
+                  style={{
+                    fontSize: 13, color: '#0F6E56',
+                    border: '0.5px dashed var(--color-border-secondary)',
+                    background: 'transparent',
+                  }}>
                   <Plus className="size-4" /> Add medication from this visit
                 </button>
               </div>
@@ -1011,8 +1056,13 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
                 </div>
               )}
 
+              <p className="uppercase font-medium tracking-[0.07em] mb-3"
+                style={{ fontSize: 9, color: 'var(--color-text-tertiary)' }}>
+                Visit Summary
+              </p>
               {/* Core summary */}
-              <div className="rounded-xl border divide-y">
+              <div className="rounded-[10px] divide-y"
+                style={{ background: 'var(--color-background-secondary)', border: '0.5px solid var(--color-border-tertiary)' }}>
                 <div className="p-3.5 space-y-1">
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Visit</p>
                   <div className="flex items-start gap-2">
@@ -1049,10 +1099,12 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
               {/* Documents being saved */}
               {uploadedFiles.length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Documents being saved</p>
+                  <p className="uppercase font-medium tracking-[0.07em] mb-2"
+                    style={{ fontSize: 9, color: 'var(--color-text-tertiary)' }}>Documents being saved</p>
                   <div className="space-y-2">
                     {documentCards.map((card, i) => (
-                      <div key={i} className="rounded-lg bg-muted/30 px-3 py-2.5 space-y-0.5">
+                      <div key={i} className="rounded-[8px] px-3 py-2.5 space-y-0.5"
+                        style={{ background: 'var(--color-background-secondary)' }}>
                         <p className="text-sm font-semibold">{card.title || uploadedFiles[i]?.name}</p>
                         <p className="text-xs text-muted-foreground">
                           {[DOCUMENT_TYPES.find((t) => t.value === card.document_type)?.label, card.document_date ? fmtDate(card.document_date) : '']
@@ -1070,10 +1122,12 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
               {/* Medications from this visit */}
               {meds.filter((m) => m.name.trim()).length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Medications from this visit</p>
+                  <p className="uppercase font-medium tracking-[0.07em] mb-2"
+                    style={{ fontSize: 9, color: 'var(--color-text-tertiary)' }}>Medications from this visit</p>
                   <div className="space-y-2">
                     {meds.filter((m) => m.name.trim()).map((m) => (
-                      <div key={m.id} className="rounded-lg bg-muted/30 px-3 py-2.5 space-y-0.5">
+                      <div key={m.id} className="rounded-[8px] px-3 py-2.5 space-y-0.5"
+                        style={{ background: 'var(--color-background-secondary)' }}>
                         <p className="text-sm font-semibold">{m.name}</p>
                         {(m.dosage || m.frequency) && (
                           <p className="text-xs text-muted-foreground">{[m.dosage, m.frequency].filter(Boolean).join(' · ')}</p>
@@ -1098,20 +1152,23 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
 
               {/* Warnings */}
               {uploadedFiles.length > 0 && documentCards.some((c) => !c.title.trim()) && (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-                  <p className="text-xs text-amber-800">⚠ Some documents are missing a title.</p>
+                <div className="rounded-[8px] px-4 py-3"
+                style={{ background: '#FAEEDA', border: '0.5px solid rgba(186,117,23,0.2)' }}>
+                  <p className="text-xs" style={{ color: '#854F0B' }}>⚠ Some documents are missing a title.</p>
                 </div>
               )}
 
               {medIncomplete && (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-                  <p className="text-xs text-amber-800">⚠ Some medication details are incomplete. You can update them in Medications after saving.</p>
+                <div className="rounded-[8px] px-4 py-3"
+                style={{ background: '#FAEEDA', border: '0.5px solid rgba(186,117,23,0.2)' }}>
+                  <p className="text-xs" style={{ color: '#854F0B' }}>⚠ Some medication details are incomplete. You can update them in Medications after saving.</p>
                 </div>
               )}
 
               {medsWithReminderOff > 0 && (
-                <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
-                  <p className="text-xs text-blue-800">
+                <div className="rounded-[8px] px-4 py-3"
+                style={{ background: '#E6F1FB', border: '0.5px solid rgba(24,95,165,0.15)' }}>
+                  <p className="text-xs" style={{ color: '#185FA5' }}>
                     💊 Reminders are off for <span className="font-semibold">{medsWithReminderOff} medication{medsWithReminderOff > 1 ? 's' : ''}</span>.
                     Enable them in the Medications page after verifying details.
                   </p>
@@ -1125,7 +1182,7 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
         {/* ── Zone 3: Fixed footer ──────────────────────────────────────── */}
         <div className="flex-shrink-0 px-6 py-4 border-t border-gray-100 bg-white">
           {step === 1 && (
-            <Button className="w-full bg-teal-600 hover:bg-teal-700" disabled={!step1Valid} onClick={() => setStep(2)}>
+            <Button className="w-full hover:opacity-90" style={{ background: '#0F6E56', color: 'white' }} disabled={!step1Valid} onClick={() => setStep(2)}>
               Next →
             </Button>
           )}
@@ -1135,7 +1192,7 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
                 Skip, continue manually →
               </button>
             ) : (
-              <Button className="w-full bg-teal-600 hover:bg-teal-700" disabled={isExtractingAll} onClick={() => setStep(3)}>
+              <Button className="w-full hover:opacity-90" style={{ background: '#0F6E56', color: 'white' }} disabled={isExtractingAll} onClick={() => setStep(3)}>
                 Next →
               </Button>
             )
@@ -1151,13 +1208,13 @@ export default function HealthEventLogger({ isOpen, onClose, familyMembers, onSu
                     : ''}
                 </p>
               )}
-              <Button className="w-full bg-teal-600 hover:bg-teal-700" disabled={step3Blocked} onClick={() => setStep(4)}>
+              <Button className="w-full hover:opacity-90" style={{ background: '#0F6E56', color: 'white' }} disabled={step3Blocked} onClick={() => setStep(4)}>
                 Review summary →
               </Button>
             </div>
           )}
           {step === 4 && (
-            <Button className="w-full bg-teal-600 hover:bg-teal-700" onClick={handleSave} disabled={isSaving}>
+            <Button className="w-full hover:opacity-90" style={{ background: '#0F6E56', color: 'white' }} onClick={handleSave} disabled={isSaving}>
               {isSaving ? <span className="flex items-center gap-2"><Loader2 className="size-4 animate-spin" /> Saving…</span> : 'Save visit'}
             </Button>
           )}

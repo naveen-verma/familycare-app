@@ -73,6 +73,7 @@ export function AddConditionDialog({
   const [loading, setLoading] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [customNameError, setCustomNameError] = useState<string | null>(null)
+  const [selectedStatus, setSelectedStatus] = useState<string>('active')
   const [search, setSearch] = useState('')
   const [selectedCondition, setSelectedCondition] = useState<ICD10Condition | null>(null)
   const [customName, setCustomName] = useState('')
@@ -272,9 +273,30 @@ export function AddConditionDialog({
             )}
           </div>
 
+          <div className="space-y-1.5">
+            <Label>Status *</Label>
+            <div className="grid grid-cols-4 gap-1.5">
+              {(['active', 'chronic', 'monitoring', 'resolved'] as const).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => { setSelectedStatus(s); setValue('status', s) }}
+                  className="capitalize py-1.5 text-center transition-colors font-medium"
+                  style={{
+                    borderRadius: 20, fontSize: 11,
+                    background: selectedStatus === s ? '#0F6E56' : 'transparent',
+                    color: selectedStatus === s ? 'white' : 'var(--color-text-secondary)',
+                    border: selectedStatus === s ? 'none' : '0.5px solid var(--color-border-tertiary)',
+                  }}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Status *</Label>
+              <div style={{ display: 'none' }}>
               <Select defaultValue="active" onValueChange={(v) => setValue('status', v)}>
                 <SelectTrigger className="w-full">
                   <SelectValue />
@@ -286,9 +308,7 @@ export function AddConditionDialog({
                   <SelectItem value="resolved">Resolved</SelectItem>
                 </SelectContent>
               </Select>
-              {errors.status && (
-                <p className="text-xs text-destructive">{errors.status.message}</p>
-              )}
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="diagnosed_on">Diagnosed On</Label>
@@ -341,7 +361,8 @@ export function AddConditionDialog({
             <Button
               type="submit"
               disabled={loading || (!selectedCondition && !customName.trim() && !search.trim())}
-              className="w-full"
+              className="w-full rounded-full"
+              style={{ background: '#0F6E56' }}
             >
               {loading ? 'Adding...' : 'Add Condition'}
             </Button>
