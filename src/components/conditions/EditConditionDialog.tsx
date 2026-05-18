@@ -31,6 +31,7 @@ import {
   addConsultationAction,
   deleteConsultationAction,
 } from '@/app/(dashboard)/members/[id]/actions'
+import { validateName } from '@/lib/validation/inputs'
 import type { ConditionWithICD10 } from '@/lib/conditions'
 import type { ConditionConsultation } from '@/types/database'
 
@@ -55,8 +56,14 @@ function consultationTypeBadge(type: string | null | undefined) {
 
 const conditionSchema = z.object({
   status: z.string().min(1),
-  diagnosed_by: z.string().optional(),
-  notes: z.string().optional(),
+  diagnosed_by: z.string().optional().refine(
+    (v) => !v || validateName(v, 'Doctor name', false) === null,
+    { message: 'Doctor name must contain at least one letter and be under 100 characters' }
+  ),
+  notes: z.string().optional().refine(
+    (v) => !v || v.trim().length <= 500,
+    { message: 'Notes must be under 500 characters' }
+  ),
 })
 type ConditionForm = z.infer<typeof conditionSchema>
 
@@ -110,6 +117,7 @@ export function EditConditionDialog({
     register: regCondition,
     handleSubmit: handleConditionSubmit,
     setValue: setConditionValue,
+    watch: watchCondition,
     formState: { errors: conditionErrors },
   } = useForm<ConditionForm>({
     resolver: zodResolver(conditionSchema),
@@ -119,6 +127,8 @@ export function EditConditionDialog({
       notes: condition.notes ?? '',
     },
   })
+
+  const conditionNotesValue = watchCondition('notes') ?? ''
 
   // Consultation form
   const {
@@ -221,16 +231,25 @@ export function EditConditionDialog({
               {...regCondition('diagnosed_by')}
               placeholder="e.g. Dr. Gupta, AIIMS Delhi"
             />
+            {conditionErrors.diagnosed_by && (
+              <p className="text-red-500 text-xs mt-1">{conditionErrors.diagnosed_by.message}</p>
+            )}
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="edit_notes">Notes</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="edit_notes">Notes</Label>
+              <span className={`text-xs ${conditionNotesValue.length > 500 ? 'text-red-500' : 'text-gray-400'}`}>{conditionNotesValue.length} / 500</span>
+            </div>
             <Textarea
               id="edit_notes"
               {...regCondition('notes')}
               placeholder="Any notes about this condition..."
               rows={2}
             />
+            {conditionErrors.notes && (
+              <p className="text-red-500 text-xs mt-1">{conditionErrors.notes.message}</p>
+            )}
           </div>
 
           {conditionError && (

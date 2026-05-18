@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { updateUserProfile, createPrimaryFamilyMember } from '@/lib/onboarding'
+import { validateName, validateIndianMobile, sanitiseMobile } from '@/lib/validation/inputs'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -41,6 +42,8 @@ export default function OnboardingPage() {
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [nameError, setNameError] = useState('')
+  const [mobileError, setMobileError] = useState('')
 
   // Step 1 data
   const [fullName, setFullName] = useState('')
@@ -94,14 +97,12 @@ export default function OnboardingPage() {
     e.preventDefault()
     setError('')
 
-    if (!fullName.trim()) {
-      setError('Please enter your full name')
-      return
-    }
-    if (mobile.length !== 10) {
-      setError('Please enter a valid 10-digit mobile number')
-      return
-    }
+    const nErr = validateName(fullName, 'Full name', true) ?? ''
+    const mErr = validateIndianMobile(mobile, false) ?? ''
+    setNameError(nErr)
+    setMobileError(mErr)
+    if (nErr || mErr) return
+
     if (!termsAccepted) {
       setError('Please accept the Terms of Service, Privacy Policy and Medical Disclaimer to continue')
       return
@@ -111,10 +112,11 @@ export default function OnboardingPage() {
     try {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
+      const cleanMobile = mobile ? sanitiseMobile(mobile) : ''
 
       await updateUserProfile({
         full_name: fullName.trim(),
-        mobile,
+        mobile: cleanMobile,
         city: city.trim(),
         state
       })
@@ -198,13 +200,15 @@ export default function OnboardingPage() {
                   id="fullName"
                   placeholder="Naveen Kumar"
                   value={fullName}
-                  onChange={e => setFullName(e.target.value)}
+                  onChange={e => { setFullName(e.target.value); if (nameError) setNameError('') }}
+                  onBlur={() => setNameError(validateName(fullName, 'Full name', true) ?? '')}
                   autoFocus
                 />
+                {nameError && <p className="text-red-500 text-xs mt-1">{nameError}</p>}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="mobile">Mobile Number *</Label>
+                <Label htmlFor="mobile">Mobile Number</Label>
                 <div className="flex gap-2">
                   <div className="flex items-center px-3 bg-gray-100 border border-gray-200 rounded-md text-sm text-gray-600 font-medium">
                     🇮🇳 +91
@@ -212,13 +216,15 @@ export default function OnboardingPage() {
                   <Input
                     id="mobile"
                     type="tel"
-                    placeholder="98765 43210"
+                    placeholder="10-digit mobile number"
                     value={mobile}
-                    onChange={e => setMobile(formatMobile(e.target.value))}
+                    onChange={e => { setMobile(formatMobile(e.target.value)); if (mobileError) setMobileError('') }}
+                    onBlur={() => setMobileError(validateIndianMobile(mobile, false) ?? '')}
                     maxLength={10}
                     className="flex-1"
                   />
                 </div>
+                {mobileError && <p className="text-red-500 text-xs mt-1">{mobileError}</p>}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
