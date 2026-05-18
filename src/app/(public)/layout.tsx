@@ -1,37 +1,46 @@
 import Link from 'next/link'
-import { HeartIcon } from 'lucide-react'
 
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-white flex flex-col">
-      <header className="border-b sticky top-0 z-10 bg-white">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
+    <div className="min-h-screen flex flex-col" style={{ background: 'var(--color-background-secondary)' }}>
+      {/* Header */}
+      <header className="sticky top-0 z-10"
+        style={{ background: 'var(--color-background-primary)', borderBottom: '0.5px solid var(--color-border-tertiary)' }}>
+        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <div className="size-7 rounded-md bg-indigo-600 flex items-center justify-center">
-              <HeartIcon className="size-4 text-white" />
+            <div className="flex items-center justify-center rounded-lg font-bold text-white"
+              style={{ width: 28, height: 28, background: '#1D9E75', fontSize: 10 }}>
+              FC
             </div>
-            <span className="font-semibold text-sm">FamilyCare</span>
+            <span className="font-medium" style={{ fontSize: 14, color: 'var(--color-text-primary)' }}>
+              FamilyCare
+            </span>
           </Link>
           <Link
             href="/dashboard"
-            className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+            className="font-medium hover:opacity-70 transition-opacity"
+            style={{ fontSize: 13, color: '#0F6E56' }}
           >
             ← Back to App
           </Link>
         </div>
       </header>
 
-      <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-10">
+      <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
         {children}
       </main>
 
-      <footer className="border-t bg-gray-50">
-        <div className="max-w-3xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p className="text-xs text-gray-500">© 2026 FamilyCare. All rights reserved.</p>
-          <div className="flex items-center gap-4 text-xs text-gray-500">
-            <Link href="/terms" className="hover:text-indigo-600">Terms</Link>
-            <Link href="/privacy" className="hover:text-indigo-600">Privacy</Link>
-            <Link href="/disclaimer" className="hover:text-indigo-600">Disclaimer</Link>
+      <footer style={{ borderTop: '0.5px solid var(--color-border-tertiary)', background: 'var(--color-background-primary)' }}>
+        <div className="max-w-2xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <p style={{ fontSize: 11, color: 'var(--color-text-tertiary)' }}>© 2026 FamilyCare. All rights reserved.</p>
+          <div className="flex items-center gap-4">
+            {['Terms', 'Privacy', 'Disclaimer'].map((label) => (
+              <Link key={label} href={`/${label.toLowerCase()}`}
+                className="hover:opacity-70 transition-opacity"
+                style={{ fontSize: 11, color: 'var(--color-text-tertiary)' }}>
+                {label}
+              </Link>
+            ))}
           </div>
         </div>
       </footer>
