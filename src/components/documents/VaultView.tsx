@@ -3,13 +3,6 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
   FileText,
   FileImage,
   FolderOpen,
@@ -610,21 +603,42 @@ export function VaultView({
 
   return (
     <div className="relative">
-      {/* Member filter */}
-      <div className="mb-3">
-        <Select value={filterMemberId} onValueChange={handleFilterChange}>
-          <SelectTrigger className="w-48">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Members</SelectItem>
-            {members.map((m) => (
-              <SelectItem key={m.id} value={m.id}>
-                {m.full_name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      {/* Member pill filter */}
+      <div
+        className="flex gap-2 overflow-x-auto pb-2 mb-3 -mx-4 px-4 sm:mx-0 sm:px-0"
+        style={{ scrollbarWidth: 'none' } as React.CSSProperties}
+      >
+        <button
+          type="button"
+          onClick={() => handleFilterChange('all')}
+          className="shrink-0 px-3 rounded-full text-xs font-medium transition-opacity min-h-[32px]"
+          style={
+            filterMemberId === 'all'
+              ? { background: '#0F6E56', color: 'white', border: '0.5px solid #0F6E56' }
+              : { background: 'var(--color-background-secondary)', color: 'var(--color-text-secondary)', border: '0.5px solid var(--color-border-tertiary)' }
+          }
+        >
+          All
+        </button>
+        {members.map((m) => {
+          const isSelected = filterMemberId === m.id
+          const firstName = m.full_name.split(' ')[0]
+          return (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => handleFilterChange(m.id)}
+              className="shrink-0 px-3 rounded-full text-xs font-medium transition-opacity min-h-[32px]"
+              style={
+                isSelected
+                  ? { background: '#0F6E56', color: 'white', border: '0.5px solid #0F6E56' }
+                  : { background: 'var(--color-background-secondary)', color: 'var(--color-text-secondary)', border: '0.5px solid var(--color-border-tertiary)' }
+              }
+            >
+              {firstName}
+            </button>
+          )
+        })}
       </div>
 
       {/* Document type filter chips */}
@@ -634,11 +648,12 @@ export function VaultView({
             key={value}
             type="button"
             onClick={() => setDocTypeFilter(value)}
-            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors min-h-[32px] ${
+            className="shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-opacity min-h-[32px]"
+            style={
               docTypeFilter === value
-                ? 'bg-teal-600 text-white'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80'
-            }`}
+                ? { background: '#E1F5EE', color: '#0F6E56', border: '0.5px solid #0F6E56' }
+                : { background: 'transparent', color: 'var(--color-text-secondary)', border: '0.5px solid var(--color-border-tertiary)' }
+            }
           >
             {label}
           </button>
