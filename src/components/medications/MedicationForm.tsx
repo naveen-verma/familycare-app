@@ -365,7 +365,9 @@ export function MedicationForm({
             Send WhatsApp reminder at scheduled times
           </Label>
           <p className="text-xs text-muted-foreground">
-            Reminders will be sent via WhatsApp (available from Week 10)
+            {reminderEnabled
+              ? "You'll receive WhatsApp reminders at the scheduled times"
+              : 'Enable to receive WhatsApp reminders at scheduled times'}
           </p>
         </div>
       </div>
@@ -393,7 +395,8 @@ export function MedicationForm({
         </p>
       )}
 
-      <Button type="submit" disabled={submitting || notes.length > 500} className="w-full">
+      <Button type="submit" disabled={submitting || notes.length > 500} className="w-full rounded-full"
+        style={{ background: '#0F6E56' }}>
         {submitting
           ? editMode ? 'Saving…' : 'Adding…'
           : editMode ? 'Save Changes' : 'Add Medication'}
