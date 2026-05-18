@@ -440,7 +440,7 @@ release: v1.5.11 — health event logger sheet fixed height
 
 ## Current Development Status
 
-### Current Version: v1.5.11
+### Current Version: v1.6.0 Phase 1.5 Closed Out — UI Design System Complete
 
 ### Phase 1 — Complete ✅
 Core app live on Vercel production and custom domain.
@@ -481,6 +481,41 @@ Internal testing fixes implemented and shipped.
 - Header (flex-shrink-0) and footer/Next button (flex-shrink-0) always visible
 - Sheet height identical regardless of data volume or step number
 
+## Phase 1.5 UI Design System — Complete ✅
+
+Design system established and applied across entire app:
+
+Three shell components built:
+  PageShell — all authenticated pages
+  AuthShell — login, verify, onboarding
+  PublicShell — share page, T&C, privacy
+
+Command Center dashboard:
+  Dark collapsible sidebar (#085041)
+  Teal primary (#0F6E56) throughout
+  Today's snapshot replacing stat row
+  Smart reminder strip grouped by member + sorted by time
+  Member panel with phase-ready health panel slots
+  Quick actions grid with More overflow
+
+Pages restyled (Sprint 1–3):
+  Family, Member Profile, Documents, Document detail
+  Medications, Medication detail, Timeline
+  Login, Verify, Onboarding Step 1 and Step 2
+  Log Visit 4-step sheet (all steps)
+  Add Member, Add Condition, Add Medication sheets
+  Share with Doctor public page
+  Terms, Privacy, Disclaimer static pages
+
+Design tokens:
+  Primary: #0F6E56
+  Primary light: #E1F5EE
+  Amber: #854F0B
+  Sheet height: 85vh fixed (established v1.5.11)
+  Card border: 0.5px solid var(--color-border-tertiary)
+  Card radius: var(--border-radius-lg)
+  Section labels: 9px uppercase letter-spaced muted
+
 ### Previously Completed (Phase 1) ✅
 - Dev/staging/prod environment setup
 - 13 database migrations with full RLS
@@ -504,10 +539,11 @@ Internal testing fixes implemented and shipped.
 - Horizontal timeline redesign (v1.5.4)
 
 ### Pending ⏳
-1. WF7 — get MSG91 template approved for production, replace placeholder node
-2. Tester update email — announce v1.5.5 through v1.5.11 features
-3. Phase 2 scoping — Second Opinion Engine
-4. Production n8n setup on Railway
+1. WF7 — replace MSG91 placeholder node with HTTP Request using familycare_share_link template
+2. WhatsApp reminder notes — verify live notification shows dosage + notes correctly
+3. Terms & Conditions — add 18+ age requirement clause
+4. Production n8n — verify all 5 workflows healthy
+5. Phase 2 scoping — Second Opinion Engine
 
 ---
 
