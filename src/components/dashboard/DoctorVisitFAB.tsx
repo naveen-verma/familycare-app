@@ -21,7 +21,7 @@ export function DoctorVisitFAB({ members, onSuccess, disabled }: DoctorVisitFABP
         disabled={disabled}
         aria-label="Log doctor visit"
         className={`
-          fixed bottom-20 md:bottom-6 right-6 z-50
+          fixed bottom-20 right-6 z-50 md:hidden
           flex items-center gap-2
           bg-teal-600 hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed
           text-white rounded-full shadow-lg hover:shadow-xl
