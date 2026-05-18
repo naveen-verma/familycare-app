@@ -1,26 +1,19 @@
 'use client'
 
 import { useState, Suspense } from 'react'
+import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { signInWithGoogle } from '@/lib/auth'
+import { Loader2 } from 'lucide-react'
+import { AuthShell } from '@/components/layout/AuthShell'
 import { validateEmail, validateIndianMobile } from '@/lib/validation/inputs'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
 
 const USE_PHONE_AUTH = process.env.NEXT_PUBLIC_APP_ENV === 'production'
 
 function GoogleIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
       <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
       <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
       <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
@@ -29,27 +22,16 @@ function GoogleIcon() {
   )
 }
 
-function Spinner() {
-  return (
-    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-    </svg>
-  )
-}
-
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const oauthError = searchParams.get('error') === 'oauth_error'
   const sessionExpired = searchParams.get('reason') === 'session_expired'
+  const oauthError = searchParams.get('error') === 'oauth_error'
 
   const [value, setValue] = useState('')
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
-  const [error, setError] = useState(
-    oauthError ? 'Google sign-in failed. Please try again.' : ''
-  )
+  const [error, setError] = useState(oauthError ? 'Google sign-in failed. Please try again.' : '')
   const [fieldError, setFieldError] = useState('')
 
   const formatMobile = (val: string) => val.replace(/\D/g, '').slice(0, 10)
@@ -59,8 +41,6 @@ function LoginForm() {
     setError('')
     try {
       await signInWithGoogle()
-      // signInWithGoogle triggers a full-page redirect to Google —
-      // spinner stays visible until the browser navigates away
     } catch {
       setError('Could not start Google sign-in. Please try again.')
       setGoogleLoading(false)
@@ -81,30 +61,21 @@ function LoginForm() {
     }
 
     setLoading(true)
-
     try {
       const supabase = createClient()
-
       if (USE_PHONE_AUTH) {
-        const { error } = await supabase.auth.signInWithOtp({
-          phone: `+91${value}`,
-        })
+        const { error } = await supabase.auth.signInWithOtp({ phone: `+91${value}` })
         if (error) { setError(error.message); return }
         sessionStorage.setItem('familycare_phone', `+91${value}`)
       } else {
         const { error } = await supabase.auth.signInWithOtp({
-          email: value,
-          options: {
-            shouldCreateUser: true,
-            emailRedirectTo: undefined,
-          }
+          email: value.trim().toLowerCase(),
+          options: { shouldCreateUser: true, emailRedirectTo: undefined },
         })
         if (error) { setError(error.message); return }
-        sessionStorage.setItem('familycare_email', value)
+        sessionStorage.setItem('familycare_email', value.trim().toLowerCase())
       }
-
       router.push('/verify')
-
     } catch {
       setError('Something went wrong. Please try again.')
     } finally {
@@ -112,92 +83,90 @@ function LoginForm() {
     }
   }
 
-  return (
-    <Card className="shadow-lg border-0">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-xl font-semibold">
-          Your family&apos;s health, all in one place
-        </CardTitle>
-        <CardDescription>Sign in to continue</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
+  const labelStyle: React.CSSProperties = {
+    fontSize: 12, fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 4, display: 'block',
+  }
+  const inputStyle: React.CSSProperties = {
+    width: '100%', border: '0.5px solid var(--color-border-tertiary)',
+    borderRadius: 8, padding: '9px 12px', fontSize: 13,
+    color: 'var(--color-text-primary)', outline: 'none',
+    background: 'var(--color-background-primary)',
+  }
 
+  return (
+    <AuthShell
+      title="Welcome back"
+      subtitle="Sign in to manage your family's health"
+    >
+      <div className="space-y-4">
         {sessionExpired && (
-          <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded-md">
+          <div className="text-xs px-3 py-2 rounded-lg"
+            style={{ background: '#FAEEDA', color: '#633806' }}>
             Your session expired due to inactivity. Please log in again.
           </div>
         )}
 
-        {/* Google SSO — primary */}
+        {/* Google SSO */}
         <button
           type="button"
           onClick={handleGoogleSignIn}
           disabled={googleLoading || loading}
-          className="w-full flex items-center justify-center gap-3 h-12 px-4 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          className="w-full flex items-center justify-center gap-2.5 rounded-[20px] py-2.5 transition-opacity hover:opacity-80 disabled:opacity-50"
+          style={{
+            border: '0.5px solid var(--color-border-tertiary)',
+            background: 'var(--color-background-primary)',
+            fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)',
+          }}
         >
-          {googleLoading ? (
-            <>
-              <Spinner />
-              Redirecting to Google...
-            </>
-          ) : (
-            <>
-              <GoogleIcon />
-              Continue with Google
-            </>
-          )}
+          {googleLoading ? <Loader2 size={16} className="animate-spin" /> : <GoogleIcon />}
+          {googleLoading ? 'Redirecting…' : 'Continue with Google'}
         </button>
 
         {/* Divider */}
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t border-gray-200" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-white px-2 text-gray-400">or</span>
-          </div>
+        <div className="relative flex items-center gap-3">
+          <div className="flex-1 h-px" style={{ background: 'var(--color-border-tertiary)' }} />
+          <span style={{ fontSize: 11, color: 'var(--color-text-tertiary)' }}>or</span>
+          <div className="flex-1 h-px" style={{ background: 'var(--color-border-tertiary)' }} />
         </div>
 
-        {/* Email / Phone OTP — secondary */}
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="value" className="text-xs text-gray-500 uppercase tracking-wide">
-              {USE_PHONE_AUTH ? 'Or sign in with mobile' : 'Or sign in with email'}
-            </Label>
+        {/* OTP form */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label style={labelStyle}>{USE_PHONE_AUTH ? 'Mobile number' : 'Email address'}</label>
             {USE_PHONE_AUTH ? (
-              <div className="flex gap-2">
-                <div className="flex items-center px-3 bg-gray-100 border border-gray-200 rounded-md text-sm text-gray-600 font-medium">
-                  🇮🇳 +91
-                </div>
-                <Input
-                  id="value"
-                  type="tel"
-                  placeholder="10-digit mobile number"
-                  value={value}
+              <div className="flex items-center rounded-[8px] overflow-hidden"
+                style={{ border: '0.5px solid var(--color-border-tertiary)' }}>
+                <span className="px-3 shrink-0"
+                  style={{ fontSize: 13, color: 'var(--color-text-secondary)', borderRight: '0.5px solid var(--color-border-tertiary)', paddingBlock: 9 }}>
+                  +91
+                </span>
+                <input
+                  type="tel" value={value}
                   onChange={(e) => { setValue(formatMobile(e.target.value)); if (fieldError) setFieldError('') }}
                   onBlur={() => setFieldError(validateIndianMobile(value, false) ?? '')}
-                  className="flex-1 text-lg tracking-widest"
+                  placeholder="10-digit number"
                   maxLength={10}
                   disabled={googleLoading}
+                  style={{ flex: 1, padding: '9px 12px', fontSize: 13, color: 'var(--color-text-primary)', outline: 'none', background: 'transparent', border: 'none' }}
                 />
               </div>
             ) : (
-              <Input
-                id="value"
-                type="email"
-                placeholder="you@example.com"
-                value={value}
+              <input
+                type="email" value={value}
                 onChange={(e) => { setValue(e.target.value); if (fieldError) setFieldError('') }}
                 onBlur={() => setFieldError(validateEmail(value, false) ?? '')}
+                placeholder="your@email.com"
                 disabled={googleLoading}
+                style={inputStyle}
               />
             )}
-            {fieldError && <p className="text-red-500 text-xs mt-1">{fieldError}</p>}
+            {fieldError && <p className="text-red-500 mt-1" style={{ fontSize: 11 }}>{fieldError}</p>}
           </div>
 
           {process.env.NODE_ENV === 'development' && (
-            <div className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-md">
-              Dev mode — using email OTP. Check Inbucket at{' '}
+            <div className="text-xs px-3 py-2 rounded-lg"
+              style={{ background: '#FAEEDA', color: '#633806' }}>
+              Dev mode — check OTP at{' '}
               <a href="http://127.0.0.1:54324" target="_blank" className="underline">
                 localhost:54324
               </a>
@@ -205,34 +174,28 @@ function LoginForm() {
           )}
 
           {error && (
-            <div className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-md">
-              {error}
-            </div>
+            <p className="text-red-500 text-center" style={{ fontSize: 12 }}>{error}</p>
           )}
 
-          <Button
+          <button
             type="submit"
-            variant="outline"
-            className="w-full"
             disabled={loading || googleLoading}
+            className="w-full flex items-center justify-center gap-2 text-white font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
+            style={{ background: '#0F6E56', borderRadius: 20, padding: '9px 18px', fontSize: 13 }}
           >
-            {loading ? (
-              <span className="flex items-center gap-2">
-                <Spinner />
-                Sending OTP...
-              </span>
-            ) : (
-              'Send OTP'
-            )}
-          </Button>
+            {loading ? <><Loader2 size={14} className="animate-spin" /> Sending…</> : 'Send OTP'}
+          </button>
         </form>
 
-        <p className="text-xs text-center text-gray-400 pt-1">
-          New to FamilyCare? Just sign in — we&apos;ll set up your account.
+        {/* Footer links */}
+        <p className="text-center" style={{ fontSize: 11, color: 'var(--color-text-tertiary)' }}>
+          By continuing, you agree to our{' '}
+          <Link href="/terms" className="hover:underline" style={{ color: '#0F6E56' }}>Terms</Link>
+          {' · '}
+          <Link href="/privacy" className="hover:underline" style={{ color: '#0F6E56' }}>Privacy</Link>
         </p>
-
-      </CardContent>
-    </Card>
+      </div>
+    </AuthShell>
   )
 }
 
