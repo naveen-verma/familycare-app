@@ -33,6 +33,7 @@ export type TodayMed = {
   id: string
   name: string
   dosage: string | null
+  notes: string | null
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   time_of_day: any
   reminder_enabled: boolean
@@ -206,6 +207,50 @@ export function DashboardClient({
   const reminderMeds = todaysMeds.filter((m) => m.reminder_enabled)
   const reminderCount = reminderMeds.length
 
+  // ── Reminder grouping ────────────────────────────────────────────────────────
+  // Member info lookup keyed by id
+  const memberInfoMap = new Map(
+    familyMembers.map((m, i) => [m.id, { name: m.name, isPrimary: m.is_primary, colorIndex: i }])
+  )
+
+  // Sort flat list by first scheduled time ascending
+  const sortedReminderMeds = [...reminderMeds].sort((a, b) => {
+    const aT = (Array.isArray(a.time_of_day) ? (a.time_of_day as string[])[0] : '') ?? ''
+    const bT = (Array.isArray(b.time_of_day) ? (b.time_of_day as string[])[0] : '') ?? ''
+    return aT.localeCompare(bT)
+  })
+
+  type ReminderRow = { id: string; name: string; dosage: string | null; notes: string | null; times: string[] }
+  type ReminderGroup = { memberId: string; memberName: string; colorIndex: number; isPrimary: boolean; reminders: ReminderRow[] }
+
+  const groupMap = new Map<string, ReminderGroup>()
+  for (const med of sortedReminderMeds) {
+    const mid = med.family_member_id
+    const info = memberInfoMap.get(mid) ?? {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      name: (med.family_members as any)?.full_name ?? '—',
+      isPrimary: false,
+      colorIndex: 0,
+    }
+    if (!groupMap.has(mid)) {
+      groupMap.set(mid, { memberId: mid, memberName: info.name, colorIndex: info.colorIndex, isPrimary: info.isPrimary, reminders: [] })
+    }
+    groupMap.get(mid)!.reminders.push({
+      id: med.id,
+      name: med.name,
+      dosage: med.dosage,
+      notes: med.notes ?? null,
+      times: Array.isArray(med.time_of_day) ? (med.time_of_day as string[]) : [],
+    })
+  }
+
+  // Primary member first, then alphabetical
+  const reminderGroups: ReminderGroup[] = Array.from(groupMap.values()).sort((a, b) => {
+    if (a.isPrimary !== b.isPrimary) return a.isPrimary ? -1 : 1
+    return a.memberName.localeCompare(b.memberName)
+  })
+  // ── End reminder grouping ────────────────────────────────────────────────────
+
   const safeIndex = Math.min(activeMemberIndex, Math.max(0, familyMembers.length - 1))
   const activeMember = familyMembers[safeIndex]
 
@@ -364,7 +409,7 @@ export function DashboardClient({
           <div className="bg-white rounded-[10px] overflow-hidden"
             style={{ border: '0.5px solid rgba(0,0,0,0.07)' }}>
 
-            {/* Header */}
+            {/* Amber header */}
             <div
               className="flex items-center gap-2 px-3 py-2.5"
               style={{
@@ -386,39 +431,93 @@ export function DashboardClient({
               </button>
             </div>
 
-            {/* Rows */}
             <div className="px-3 py-[4px]">
-              {(reminderExpanded ? reminderMeds : reminderMeds.slice(0, 2)).map((med, i) => {
-                const memberColor = MEMBER_COLORS[i % MEMBER_COLORS.length]
-                const memberName: string = med.family_members?.full_name ?? '—'
-                const times: string[] = Array.isArray(med.time_of_day) ? med.time_of_day : []
-                return (
-                  <div key={med.id} className="flex items-center gap-2 py-2"
-                    style={{ borderBottom: i < (reminderExpanded ? reminderMeds.length - 1 : Math.min(2, reminderMeds.length) - 1) ? '0.5px solid #F3F4F6' : 'none' }}>
-                    <div
-                      className="flex items-center justify-center rounded-full shrink-0 font-semibold"
-                      style={{ width: 20, height: 20, background: memberColor.bg, color: memberColor.text, fontSize: 8 }}
+              {reminderExpanded ? (
+                /* ── Expanded: grouped by member ─── */
+                reminderGroups.map((group, gi) => {
+                  const color = MEMBER_COLORS[group.colorIndex % MEMBER_COLORS.length]
+                  const firstName = group.memberName.split(' ')[0]
+                  return (
+                    <div key={group.memberId}>
+                      {/* Hairline divider between groups */}
+                      {gi > 0 && (
+                        <div style={{ height: '0.5px', background: '#F3F4F6', margin: '4px 0 0' }} />
+                      )}
+
+                      {/* Group header row */}
+                      <div className="flex items-center gap-2 pt-2 pb-1">
+                        <div
+                          className="flex items-center justify-center rounded-full shrink-0 font-semibold"
+                          style={{ width: 20, height: 20, background: color.bg, color: color.text, fontSize: 8 }}
+                        >
+                          {initials(group.memberName)}
+                        </div>
+                        <p className="flex-1 text-[11px] font-medium text-gray-800">{firstName}</p>
+                        <span
+                          className="text-[9px] rounded-[10px] px-[6px] py-[1px]"
+                          style={{ background: '#F3F4F6', color: '#9CA3AF' }}
+                        >
+                          {group.reminders.length} reminder{group.reminders.length !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                      {/* Subtle divider below header */}
+                      <div style={{ height: '0.5px', background: '#F3F4F6', marginBottom: 2 }} />
+
+                      {/* Reminder rows — indented, no repeated avatar */}
+                      {group.reminders.map((rem) => {
+                        const timeStr = rem.times.length > 0 ? rem.times.join(' · ') : 'As needed'
+                        return (
+                          <div key={rem.id} className="flex items-center py-1.5 pl-7">
+                            <p className="flex-1 text-[11px] text-gray-700 truncate">
+                              <span className="font-medium">{rem.name}</span>
+                              {rem.dosage && <span className="text-gray-500"> {rem.dosage}</span>}
+                              {rem.notes && <span className="text-gray-400"> · {rem.notes}</span>}
+                            </p>
+                            <p className="text-[10px] shrink-0" style={{ color: '#854F0B' }}>{timeStr}</p>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                })
+              ) : (
+                /* ── Collapsed: first reminder from each of first 2 groups ─── */
+                <>
+                  {reminderGroups.slice(0, 2).map((group, gi) => {
+                    const rem = group.reminders[0]
+                    const color = MEMBER_COLORS[group.colorIndex % MEMBER_COLORS.length]
+                    const firstName = group.memberName.split(' ')[0]
+                    const timeStr = rem.times.length > 0 ? rem.times.join(' · ') : 'As needed'
+                    return (
+                      <div key={group.memberId} className="flex items-center gap-2 py-2"
+                        style={{ borderBottom: gi < Math.min(2, reminderGroups.length) - 1 ? '0.5px solid #F3F4F6' : 'none' }}>
+                        <div
+                          className="flex items-center justify-center rounded-full shrink-0 font-semibold"
+                          style={{ width: 20, height: 20, background: color.bg, color: color.text, fontSize: 8 }}
+                        >
+                          {initials(group.memberName)}
+                        </div>
+                        <p className="flex-1 text-[11px] text-gray-700 truncate">
+                          <span className="font-medium">{firstName}</span>
+                          {' · '}
+                          <span>{rem.name}</span>
+                          {rem.dosage && <span className="text-gray-500"> {rem.dosage}</span>}
+                          {rem.notes && <span className="text-gray-400"> · {rem.notes}</span>}
+                        </p>
+                        <p className="text-[10px] text-gray-400 shrink-0">{timeStr}</p>
+                      </div>
+                    )
+                  })}
+                  {reminderGroups.length > 2 && (
+                    <button
+                      onClick={() => setReminderExpanded(true)}
+                      className="w-full py-2 text-center hover:opacity-70 transition-opacity"
+                      style={{ fontSize: 10, color: '#854F0B' }}
                     >
-                      {initials(memberName)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[11px] font-medium text-gray-800 truncate">{med.name}</p>
-                      {med.dosage && <p className="text-[9px] text-gray-400">{med.dosage}</p>}
-                    </div>
-                    <p className="text-[10px] text-gray-400 shrink-0">
-                      {times.length > 0 ? times.join(' · ') : 'As needed'}
-                    </p>
-                  </div>
-                )
-              })}
-              {!reminderExpanded && reminderCount > 2 && (
-                <button
-                  onClick={() => setReminderExpanded(true)}
-                  className="w-full py-2 text-center hover:opacity-70 transition-opacity"
-                  style={{ fontSize: 10, color: '#854F0B' }}
-                >
-                  + {reminderCount - 2} more reminder{reminderCount - 2 > 1 ? 's' : ''} · tap to expand
-                </button>
+                      + {reminderGroups.length - 2} more member{reminderGroups.length - 2 > 1 ? 's' : ''} · tap to expand
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </div>
